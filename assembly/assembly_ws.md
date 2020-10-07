@@ -920,17 +920,16 @@ end    ; program end
   				  ; codesg 标注这个程序段
   
   
-      mov ax,0ffffh
-      mov ds,ax
+      mov ax,0ffffh    ;显式的告诉编译器，用的是16进制，如果不是数字开头，需要加上 0
+      mov ds,ax    
       mov bx,6
   
-      mov ah,0
+      mov ah,0    ;ffff:0006 单元是字节，dx 保存的是子单元，为了保持后面加法数据单位的统一
       mov al,[bx]
   
       mov cx,200
       mov dx,0
   
-      add dx,ax
   s:  add dx,ax
       loop s
   
@@ -1043,3 +1042,54 @@ end    ; program end
 
 
 ### 5.4 Debug 汇编编译器 masm 对指令的不同处理
+
+- 在汇编源程序中, "mov ax,[0]"  会被编译器当作指令 "mov ax,0" 处理，也可以形容为将 "[idata]" 解释为 "idata"。
+
+- 解决办法
+
+  ```
+  ;方法1,将偏移地址，赋值给寄存器 bx
+  ;方法2,显式的带上段寄存器 ds,例如：
+  mov al,ds:[6]
+  ```
+
+  
+
+### 5.5 loop 和 [bx] 的联合应用
+
+- 实现：计算 ffff:0 ~ ffff:b 单元中的数据的和，结果存储在 dx 中
+
+- 代码前的分析：dx 至少可以保存 257 个单元的值的和，才这几个，不在话下~ （为何是 257？用 二进制来算，ffff = 2^16-1 = 65535,ff = 2^8-1 = 255,65535/255 = 257;用16进制来算，dx 的最大值可以达到 ffff, 单元的值是字节，最大值是 ff, ffff/ff = ff = 255,这样算应该是不对哈，16 进制的除法应该不是这样的~;）
+
+  ```assembly
+  assume cs:codesg    ;将程序指向 codesg 这个程序段
+  
+  codesg segment    ;segment 开始
+  				  ; codesg 标注这个程序段
+  
+      
+      mov ax,0ffffh
+      mov ds,ax
+      mov bx,0
+      mov dx,0
+      mov ah,0
+      mov cx,12
+  
+  s:  mov al,[bx]
+      add dx,ax
+      inc bx
+      loop s
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends    ;segment end
+  
+  end    ; program end
+  ```
+
+
+
+### 5.6 段前缀
+
