@@ -849,9 +849,12 @@ end    ; program end
       ; 共有的规律
       ;mov [bx],0016    ; error,不可以直接给内存单元赋值
       ;mov al,[cx]    ;error,must be index or base register
-  
+      ;mov es,6    ;ds,cs,ss,es 等段寄存器都不可以直接赋值
+  	;mov ax,es:[number]    ;如果显式的使用，那么结果都一样（具体代码可以参考 5.5 章节）
+  	
       ; dos debug 中
       ;mov ax,15h    ; error,因为 dos debug 中默认就是 16 进制哦
+      ;mov ax,[6]    ; 等同于 mov ax,[bx] ((bx)=6)
       
       ; 源程序中
       mov ax,15      ; debug exe 文件之后，转为 mov ax,000F
@@ -1093,3 +1096,82 @@ end    ; program end
 
 ### 5.6 段前缀
 
+- 8086CPU的数据段默认段寄存器也称为段前缀，是 ds. 其实，cs, ss,es 都是段寄存器，都可以作为段前缀，
+
+  但是需要显式的使用；显式使用的时候，既可以用 [bx],也可以是 [number]
+
+- 经测试，ds,cs,ss,es 等段寄存器都不可以直接赋值
+
+- 具体使用，如下所示
+
+  ```assembly
+  assume cs:codesg    ;将程序指向 codesg 这个程序段
+  
+  codesg segment    ;segment start
+  				  ; codesg 标注这个程序段
+  
+      mov bx,6
+      mov ax,ds:[bx]
+      mov ax,cs:[bx]
+      mov ax,ss:[bx]
+      mov ax,es:[bx]
+  
+      mov ax,ds:[6]
+      mov ax,cs:[6]
+      mov ax,ss:[6]
+      mov ax,es:[6]
+  
+      
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends    ;segment end
+  
+  end    ; program end
+  ```
+
+
+
+### 5.7 一段安全的空间
+
+```assembly
+assume cs:codesg    ;将程序指向 codesg 这个程序段
+
+codesg segment    ;segment start
+				  ; codesg 标注这个程序段
+
+    
+    mov ax,0
+    mov ds,ax
+    mov ds:[26h],ax
+
+    
+    mov ax,4c00h
+    int 21h
+
+
+codesg ends    ;segment end
+
+end    ; program end
+```
+
+- 这段程序，将引起 DOS 死机。产生这种结果的原因是 0:0026 处存放着重要的系统数据。
+
+- DOS 方式下，一般情况下 0:200 ~ 0:2ff 空间中，没有存放系统或其它程序的代码或者数据，所以我们一般使用这一段。
+
+- 我们似乎面临一种选择，是在操作系统中安全，规矩的编程，还是自由，直接的用汇编语言去操作真实的硬件，去了解那些
+
+  早已被层层系统软件掩盖的真相？
+
+  我们的重点是汇编，此时我不关心操作系统，我只在乎硬件。（ps 海子的一句诗：姐姐，今夜我在德令哈，夜色笼罩；
+
+  姐姐，今夜我不关心人类，我只想你。）
+
+
+
+### 5.8 段前缀的使用
+
+- 代码实现：将内存 ffff:0 ~ ffff:b 单元中的数据复制到 0:200 ~ 0:20b 单元中
+
+  
