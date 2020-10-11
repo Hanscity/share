@@ -1,3 +1,5 @@
+
+
 # Assembly
 
 
@@ -492,7 +494,9 @@ mov ds,ax; ok
   pop 寄存器/内存单元    ;将寄存器或者某内存单元中的内容接受出栈的内容
   ```
 
-  
+  - 小细节：push,pop 段寄存器，也是可以的哦~
+
+    
 
 - push 指令的执行步骤
 
@@ -1164,7 +1168,7 @@ end    ; program end
 
   早已被层层系统软件掩盖的真相？
 
-  我们的重点是汇编，此时我不关心操作系统，我只在乎硬件。（ps 海子的一句诗：姐姐，今夜我在德令哈，夜色笼罩；
+  我们当前的重点是汇编，此时我不关心操作系统，我只在乎硬件。（ps 海子的一句诗：姐姐，今夜我在德令哈，夜色笼罩；
 
   姐姐，今夜我不关心人类，我只想你。）
 
@@ -1174,4 +1178,219 @@ end    ; program end
 
 - 代码实现：将内存 ffff:0 ~ ffff:b 单元中的数据复制到 0:200 ~ 0:20b 单元中
 
+  ```assembly
+  assume cs:codesg    ;将程序指向 codesg 这个程序段
   
+  codesg segment    ;segment start
+  				  ; codesg 标注这个程序段
+  
+      
+      mov ax,0ffffh
+      mov ds,ax
+      mov ax,20h
+      mov es,ax
+      mov bx,0
+      mov cx,6
+  
+      s:  mov ax,[bx]
+          mov es:[bx],ax
+          add bx,2
+      loop s
+  
+      
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends    ;segment end
+  
+  end    ; program end
+  ```
+  
+  - 使用多个段前缀，可以避免总是重复的设置 ds 
+
+
+
+### 实验 4 [bx] 和 loop 的使用
+
+- (2)编程，向内存 0:200~0:23F 依次传送数据 0~63(3FH), 程序中只能使用 9 条指令，9 条指令中包括 “mov ax,4c00h” 和 “int 21h”。
+
+  ```assembly
+  assume cs:codesg    ;将程序指向 codesg 这个程序段
+  
+  codesg segment    ;segment start
+  				  ; codesg 标注这个程序段
+  
+      
+      mov ax,20h
+      mov ds,ax
+      mov cx,40h
+      mov bx,0
+  
+      s:  mov [bx],bl
+          inc bx    ; inc bl 这个命令是错的哦~
+      loop s
+  
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends    ;segment end
+  
+  end    ; program end
+  ```
+
+
+
+
+
+## 第六章 包含多个段的程序
+
+- 在操作系统的环境中，合法的通过操作系统取得的空间都是安全的，因为操作系统不会让一个程序所用的空间和其它程序以及系统自己的空间相冲突。在操作系统允许的情况下，程序可以取得任意容量的空间。例如："debug 003loop.exe" 的时候, Dos 系统分配了一段程序段(内存)给此程序，cs:ip 指向开始的部分。
+
+- 程序获取所需的内存空间的方法有两种：
+  1. 加载程序的时候，系统分配
+  2. 执行过程中，向系统申请（暂不讨论）
+
+
+
+### 6.1 在代码段中使用数据
+
+- 将以下8个数据--0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h 的和，结果存在 ax 寄存器中：
+
+  ```assembly
+  assume cs:codesg
+  
+  codesg segment
+  			
+      dw 0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h    ;define word,定义一个字单元
+  
+  start:  
+      mov ax,0h    ; 追求统一，一致用 16 进制哈
+      mov bx,0h
+      mov cx,8h
+      
+  s:
+      add ax,cs:[bx]
+      add bx,2
+      loop s
+  
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends
+  
+  end start
+  ```
+
+  - 此程序被系统加载后，数据段也被加载进入 CS 段，在 CS:0h~CS:0Fh (8个字单元，意味着 16个字节单元，意味着 16个内存单元)
+  - end 除了通知编译器程序结束外，还可以通知编译器程序的入口在什么地方。"end start"  通知了编译器程序的入口位置在 CS:IP, 此时 IP = 10h;
+
+
+
+### 6.2 在代码段中使用栈
+
+- 将以下8个数据--0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h 逆序存放在内存空间中：
+
+  ```assembly
+  assume cs:codesg
+  
+  codesg segment
+  			
+      dw 0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h
+      dw 0h,0h,0h,0h,0h,0h,0h,0h
+  
+  start:  
+      mov ax,cs
+      mov ss,ax
+      mov sp,20h
+      mov bx,0h
+  
+      mov cx,8h
+  s1: 
+      push cs:[bx]
+      add bx,2
+      loop s1
+  
+      mov bx,0h
+      mov cx,8h
+  s2: pop cs:[bx]
+      add bx,2
+      loop s2
+      
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends
+  
+  end start
+  ```
+
+  - dw 的作用，可以说用它来定义数据，也可以说用它来开辟内存空间。
+
+
+
+### 6.3 将数据，代码，栈放入不同的段
+
+- 将以下8个数据--0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h 逆序存放在内存空间中：
+
+  ```assembly
+  assume cs:codesg,ds:data,ss:stack
+  
+  data segment
+      dw 0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h
+  data ends
+  
+  stack segment
+      dw 0h,0h,0h,0h,0h,0h,0h,0h
+  stack ends
+  
+  codesg segment
+  			
+  start:  
+      mov ax,data
+      mov ds,ax
+  
+      mov ax,stack
+      mov ss,ax
+      mov sp,10h
+  
+  
+      mov bx,0h
+      mov cx,8h
+  s1: 
+      push ds:[bx]
+      add bx,2h
+      loop s1
+  
+      mov bx,0h
+      mov cx,8h
+  s2: pop ds:[bx]
+      add bx,2h
+      loop s2
+      
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends
+  
+  end start
+  ```
+
+  - assume 是伪指令，是编译器指令，用它来设置程序段，编译器做了这些事情~
+
+    再往下追究，就得深究编译原理，编程界的屠龙之技，咱们先且退下，不要走火入魔
+
+    
+
+### 实验 5 编写，调试具有多个段的程序
+
+- 。。。
+
