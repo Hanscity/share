@@ -1386,11 +1386,215 @@ end    ; program end
 
   - assume 是伪指令，是编译器指令，用它来设置程序段，编译器做了这些事情
 
-    再往下追究，就得深究编译原理，程序的屠龙之技~
+    再往下追究，就得学习编译原理，程序的屠龙之技~
 
     
 
 ### 实验 5 编写，调试具有多个段的程序
+
+- 待续。。。
+
+
+
+## 第 7 章 更灵活的定位内存地址的方法
+
+
+
+### 7.1 and 和 or 指令
+
+- and 指令：逻辑与指令，按位进行与运算（两个同时为真，才为真；反之，有一个为假，就为假）
+
+  ```
+  mov al,01100011B
+  and al,00111011B
+  ;al =  00100011B
+  ```
+
+  
+
+- or 指令：逻辑或指令，按位进行或运算（有一个为真，即是真；反之同时为假，就为假）
+
+  ```
+  mov al,01100011B
+  or al, 00111011B
+  ;al =  01111011B
+  ```
+
+  
+
+#### 扩展：PHP 位运算的应用
+
+- 应用背景：用户三百万，用户字段，当时接近 100个，还在不断扩展；并发比较高，用户信息会同步 redis；在一些特定的场景下，
+
+  会非常的方便数据库的扩展，会节省较多的缓存。
+
+```php
+<?php
+
+
+class Binary
+{
+
+
+    public static $flag_shumei = 1; // 0001
+    public static $flag_driver = 2; // 0010
+
+    //判断这个标志位是否被设置
+    public function isBitSetFlag($flag,$val)
+    {
+        return (($val & $flag) === $flag);
+    }
+
+    /**
+     * Notes: 设置标志位
+     * User: ${USER}
+     * Date: ${DATE}
+     * Time: ${TIME}
+     * @param $flag
+     * @param $val
+     * @param $bool
+     * @return mixed
+     *
+     */
+    public function setBitflag($flag,$val,$bool)
+    {
+        if($bool){
+            $val |= $flag;
+        }else{
+            $flag ^= $flag;
+            $val &= $flag;
+        }
+
+        return $val;
+    }
+
+  
+    //初始化二进制的值
+    public function initValueBinary()
+    {
+        return 0;
+    }
+
+}
+
+
+
+
+
+class Activity
+{
+
+    /**
+     * Notes: 设置二进制位
+     * User: ${USER}
+     * Date: ${DATE}
+     * Time: ${TIME}
+     * @param $data
+     * bool,如果设置为开启，则为true ；如果设置为关闭，则为 false;
+     */
+    public function userBinaryCharacter($data)
+    {
+
+        $uid = $data['uid'];
+        $type = $data['type'];
+        $bool = $data['bool'];
+        ## 更新和写入
+        $model = new UserBinaryCharacter();
+        $res = $model->find()->where(['uid'=>$uid])->asArray()->one();
+        $cur_time = date('Y-m-d H:i:s');
+        if($res){
+            $binary_one = $res['binary_one'];
+            //设置二进制位
+            $binary_one = UserDAO::getInstance()->setBitflag($type,$binary_one,$bool);
+            $data = [
+                'binary_one' => $binary_one,
+                'update_time' => $cur_time
+            ];
+            //数据库的更新操作
+            if($model::updateAll($data, ['uid'=>$uid])){
+                //更新redis
+                UserDAO::getInstance()->updateRedisUserInfo($uid,$data);
+            };
+
+        }else{
+            $binary_one = UserDAO::getInstance()->initValueBinary();
+            $binary_one = UserDAO::getInstance()->setBitflag($type,$binary_one,$bool);
+            //数据库的写入操作
+            $model->uid = $uid;
+            $model->binary_one = $binary_one;
+            $model->create_time = $cur_time;
+            $model->update_time = $cur_time;
+            if($model->save()){
+                //更新redis
+                $data = [
+                    'binary_one' => $binary_one,
+                    'update_time' => $cur_time
+                ];
+                UserDAO::getInstance()->updateRedisUserInfo($uid,$data);
+            };
+        }
+
+    }
+
+    public function judgeUserBinaryCharacter($data)
+    {
+
+        $uid = $data['uid'];
+        $type = $data['type'];
+        $user_info = UserDAO::getInstance()->getUserInfoByUid($uid);
+        $bool = false;
+        if(isset($user_info['binary_one']) && (UserDAO::getInstance()->isBitSetFlag($type,$user_info['binary_one']))){
+            $bool = true;
+        }
+        return $bool;
+    }
+  
+  
+  
+}
+
+
+
+
+
+?>
+```
+
+
+
+### 7.2 关于 ASCII 码
+
+- 计算机只保存二进制，人类比较喜欢字符串。例如，宝马雕车香满路，一夜鱼龙舞，多么的具象；例如 "a",保存在计算机中是 61H,
+
+  输出到显存，显示部分将 61H 转为 “a” 展示在屏幕上。故，ASCII码更像是一个翻译家，是一个沟通的桥梁。
+
+- 世界上有很多的编码方案，计算机系统中，通常采用 ACSCII 码。（这里的计算机系统应该比较老哈～）
+
+
+
+#### 扩展：字符串和编码
+
+> https://www.liaoxuefeng.com/wiki/1016959663602400/1017075323632896
+
+> 由于计算机是美国人发明的，因此，最早只有127个字符被编码到计算机里，也就是大小写英文字母、数字和一些符号，这个编码表被称为`ASCII`编码
+>
+> 但是要处理中文显然一个字节是不够的，至少需要两个字节，而且还不能和ASCII编码冲突，所以，中国制定了`GB2312`编码，用来把中文编进去。
+>
+> 你可以想得到的是，全世界有上百种语言，日本把日文编到`Shift_JIS`里，韩国把韩文编到`Euc-kr`里，各国有各国的标准，就会不可避免地出现冲突，结果就是，在多语言混合的文本中，显示出来会有乱码。
+>
+> 因此，Unicode字符集应运而生。Unicode把所有语言都统一到一套编码里，这样就不会再有乱码问题了。
+>
+> Unicode标准也在不断发展，但最常用的是UCS-16编码，用两个字节表示一个字符（如果要用到非常偏僻的字符，就需要4个字节）。现代操作系统和大多数编程语言都直接支持Unicode。
+>
+> 在计算机内存中，统一使用Unicode编码，当需要保存到硬盘或者需要传输的时候，就转换为UTF-8编码。
+>
+> ...
+
+
+
+
+
+### 7.3 以字符形式给出的数据
 
 - 。。。待续
 
