@@ -625,7 +625,7 @@ end    ; program end
 
   
 
-- ds = 075A, ss = 076A, IP = 0000 ,是有原因的。中间一定会预留 256 byte 为程序段前缀，称为 PSP。DOS 需要利用 PSP 来和被加载程序进行通信。(这一段,不必深究,先记着~,话说,这本书最精妙的地方,就是告诉你所有的细节,然后和你说哪个是重点,哪个先不需要研究,知道有这个东西,就可以了.)
+- ds = 075A, cs = 076A, IP = 0000 ,是有原因的。中间一定会预留 256 byte 为程序段前缀，称为 PSP。DOS 需要利用 PSP 来和被加载程序进行通信。(这一段,不必深究,先记着~,通过后面不断的 debug， 空间是有，但不一定是绝对精准的 256 byte 呀。话说,这本书最精妙的地方,就是告诉你所有的细节,然后和你说哪个是重点,哪个先不需要研究,知道有这个东西,就可以了.)
 
   
 
@@ -1392,7 +1392,55 @@ end    ; program end
 
 ### 实验 5 编写，调试具有多个段的程序
 
-- 待续。。。
+#### 实验一：
+
+  ```assembly
+  assume cs:codesg,ds:data,ss:stack
+  
+  data segment
+      dw 0123h,0456h,0789h,0abch,0defh,0fedh,0cbah,0987h
+  data ends
+  
+  stack segment
+      dw 0h,0h,0h,0h,0h,0h,0h,0h
+  stack ends
+  
+  codesg segment
+  			
+  start:  
+      mov ax,stack
+      mov ss,ax
+      mov sp,16
+  
+      mov ax,data
+      mov ds,ax
+  
+      push ds:[0]
+      push ds:[2]
+      pop ds:[2]
+      pop ds:[0]
+      
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  codesg ends
+  
+  end start
+  ```
+
+1. CPU 执行程序，执行完成后，程序返回前，data 段中的数据为：
+
+   - 23 01 56 04 89 07 bc 0a ef  0d ed 0f ba 0c 87 09    ; 可以推断出结果没有变化，但是内存中的单元顺序，从左至右，逐渐升高
+
+     ​																						；所以看起来稍有不同
+
+     
+
+     
+
+     
 
 
 
@@ -1596,5 +1644,39 @@ class Activity
 
 ### 7.3 以字符形式给出的数据
 
-- 。。。待续
+- 代码示下：
+
+  ```assembly
+  assume cs:code,ds:data
+  
+  data segment
+      db 'unIX'
+      db 'foRK'
+  data ends
+  
+  code segment
+  			
+  start:  
+      mov ax,data
+      mov ds, ax    ;仅仅是查看，我为啥写这个赋值呢？方便明确的查看段地址，来 debug 数据哈
+                    ;例如："ds=0B2D",所以程序从 0B3D 段开始~ 难道这就是 PSP，暂不深究啦~
+      
+      mov al,'a'
+      mov bl,'b'
+  
+      mov ax,4c00h
+      int 21h
+  
+  
+  code ends
+  
+  
+  end start
+  ```
+
+
+
+### 7.4 大小写转换的问题
+
+- 待续。。。
 
