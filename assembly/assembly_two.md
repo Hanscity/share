@@ -513,4 +513,85 @@ C 语言:    a[i],b[i]
 
 ### 7.7 SI 和 DI
 
-- 待续。。。
+- si 和 di 是 8086CPU 中和 bx 功能相近的寄存器，si 和 di 不能够分为两个 8 位寄存器来使用
+
+#### 问题 7.2 ：用 si 和 di 实现将字符串 'welcome to masm!' 复制到它后面的数据区中
+
+```assembly
+assume cs:code,ds:data
+  
+    data segment
+        db 'welcome to masm!'
+        db '................'
+    data ends
+  
+    code segment
+  			
+    start:  
+        
+        
+        mov ax,4c00h
+        int 21h
+    
+  
+  code ends
+  
+  
+  end start
+```
+
+
+
+- 解答：
+
+```assembly
+assume cs:code,ds:data
+  
+    data segment
+        db 'welcome to masm!'
+        db '................'
+    data ends
+  
+    code segment
+  			
+    start:  
+        mov ax,data
+        mov ds,ax
+        mov di,0h
+
+        mov cx,8h
+    s1: 
+        mov ax,[di]
+        mov 10h[di],ax
+        add di,2
+    loop s1
+        
+        mov ax,4c00h
+        int 21h
+    
+  
+  code ends
+  
+  
+  end start
+```
+
+
+
+### 7.8 [bx+si] 和 [bx+di]
+
+- 一个特别小的注意点分享哈，有时特别容易懵
+
+```asseembly
+;Debug 查看内存，结果如下：
+;2000:0000 BE 00 06 00 00 00 ...
+;((2000*16) + 0000) 等于 00BE 还是  00EB ？
+; 结果是 00BE 哈
+; 在内存中 00 相对 BE 是高位，在寄存器中，将寄存器表达出来， B 相对于 E 是高位哦~
+```
+
+
+
+### 7.9 [bx+si+idata] 和 [bx+di+idata]
+
+- ing...
