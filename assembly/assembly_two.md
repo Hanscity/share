@@ -580,6 +580,14 @@ assume cs:code,ds:data
 
 ### 7.8 [bx+si] 和 [bx+di]
 
+- 指令 mov ax,[bx+si] 的含义如下：(ax) = ((ds)*16 +(bx)+(di)) ; 也可以表示为 
+
+  ```assembly
+  mov ax,[bx][si]
+  ```
+
+  
+
 - 一个特别小的注意点分享哈，有时特别容易懵
 
 ```asseembly
@@ -594,4 +602,48 @@ assume cs:code,ds:data
 
 ### 7.9 [bx+si+idata] 和 [bx+di+idata]
 
-- ing...
+- 指令 mov ax,[bx+si+idata] 的含义如下：(ax) = ((ds)*16+(bx)+(si)+(idata));也可以表示为：
+
+  ```assembly
+  mov ax,[bx+200+si]
+  mov ax,[200+bx+si]
+  mov ax,200[bx][si]
+  mov ax,[bx].200[si]
+  mov ax,[bx][si].200
+  ```
+
+  
+
+### 7.10 不同的寻址方式的灵活应用
+
+- 我们需要认真体会 CPU 提供多种寻址方式的用意
+
+#### 问题 7.6 编程：将 datasg 段中每个单词的头一个字母改为大写字母
+
+```assembly
+assume cs:code,ds:data
+  
+    data segment
+        db '1. file           ' ;占用 16 个字节
+        db '2. edit           '
+        db '3. search         '
+        db '4. view           '
+        db '5. options        '
+        db '6. help           '
+    data ends
+  
+    code segment
+  			
+    start:  
+        
+        
+        mov ax,4c00h
+        int 21h
+    
+  
+  code ends
+  
+  
+  end start
+```
+
