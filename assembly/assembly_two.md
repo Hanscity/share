@@ -616,34 +616,129 @@ assume cs:code,ds:data
 
 ### 7.10 不同的寻址方式的灵活应用
 
-- 我们需要认真体会 CPU 提供多种寻址方式的用意
+- 通过一个问题的系列来体会 CPU 提供多种寻址方式的用意
 
-#### 问题 7.6 编程：将 datasg 段中每个单词的头一个字母改为大写字母
+#### 编程，将 datasg 段中的每个单词的头一个字母改为大写字母
 
 ```assembly
-assume cs:code,ds:data
+assume cs:codesg,ds:datasg
   
-    data segment
-        db '1. file           ' ;占用 16 个字节
-        db '2. edit           '
-        db '3. search         '
-        db '4. view           '
-        db '5. options        '
-        db '6. help           '
-    data ends
+    datasg segment
+        db '1. file         '
+        db '2. edit         '
+        db '2. search       '
+        db '2. view         '
+        db '2. options      '
+        db '2. help         '
+    datasg ends
   
-    code segment
+    codesg segment
   			
     start:  
         
-        
+
         mov ax,4c00h
         int 21h
     
   
-  code ends
+  codesg ends
   
   
+  end start
+```
+
+
+
+- Answer
+
+```assembly
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        db '1. file         '
+        db '2. edit         '
+        db '2. search       '
+        db '2. view         '
+        db '2. options      '
+        db '2. help         '
+    datasg ends
+  
+    codesg segment
+  			
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov bx,0h
+        mov cx,6h
+        
+    s1:
+        mov ah,3[bx]
+        and ah,11011111B
+        mov 3[bx],ah
+        add bx,10h
+    loop s1        
+
+        mov ax,4c00h
+        int 21h
+    
+  
+  codesg ends
+  
+  
+  end start
+```
+
+
+
+
+
+#### 编程，将 datasg 段中每个单词改为大写字母
+
+```assembly
+
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        db 'ibm             '
+        db 'dec             '
+        db 'dos             '
+        db 'vax             '
+    datasg ends
+  
+    codesg segment
+  			
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov bx,0h
+        
+        mov si,0h
+        mov cx,3h
+        mov ds:[40h],cx
+
+    s0:
+        mov cx,4h
+    s1:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        add bx,10h
+    loop s1        
+
+        inc si
+        mov cx,ds:[40h]
+        sub cx,si
+        inc cx
+
+    loop s0
+
+
+
+        mov ax,4c00h
+        int 21h
+    
+
+  codesg ends
   end start
 ```
 
