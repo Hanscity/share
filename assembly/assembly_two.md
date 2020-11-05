@@ -707,6 +707,30 @@ assume cs:codesg,ds:datasg
   
     codesg segment
   			
+    start:
+
+        mov ax,4c00h
+        int 21h
+    
+
+    codesg ends
+  end start
+```
+
+- 解答一，这种循环方式不够好
+
+```
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        db 'ibm             '
+        db 'dec             '
+        db 'dos             '
+        db 'vax             '
+    datasg ends
+  
+    codesg segment
+  			
     start:  
         mov ax,datasg
         mov ds,ax
@@ -725,6 +749,7 @@ assume cs:codesg,ds:datasg
         add bx,10h
     loop s1        
 
+        sub bx,40h
         inc si
         mov cx,ds:[40h]
         sub cx,si
@@ -738,7 +763,18 @@ assume cs:codesg,ds:datasg
         int 21h
     
 
-  codesg ends
+    codesg ends
+
   end start
+
+```
+
+
+- 解答二：
+
+```
+
+
+
 ```
 
