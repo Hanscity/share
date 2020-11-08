@@ -692,7 +692,7 @@ assume cs:codesg,ds:datasg
 
 
 
-#### 编程，将 datasg 段中每个单词改为大写字母
+#### 问题7.7：编程，将 datasg 段中每个单词改为大写字母
 
 ```assembly
 
@@ -719,7 +719,7 @@ assume cs:codesg,ds:datasg
 
 - 解答一，这种循环方式不够好
 
-```
+```assembly
 assume cs:codesg,ds:datasg
   
     datasg segment
@@ -770,11 +770,380 @@ assume cs:codesg,ds:datasg
 ```
 
 
-- 解答二：
+- 解答二：一列操作完成，再到另外一列，这种循环方式，比较高效一些
+
+```assembly
+
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        db 'ibm             '
+        db 'dec             '
+        db 'dos             '
+        db 'vax             '
+    datasg ends
+  
+    codesg segment
+  			
+    start:  
+        mov ax,datasg
+        mov ds,ax
+
+        mov bx,0
+        mov cx,4h
+        
+    s1:
+        mov ds:[400h],cx
+        mov si,0
+        mov cx,3h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        mov cx,ds:[400h]
+    loop s1
+
+
+    mov ax,4c00h
+    int 21h
+    
+
+    codesg ends
+
+  end start
+
+
+```
+
+- 解答三，使用栈
+
+```assembly
+assume cs:codesg,ds:datasg,ss:stacksg
+  
+    datasg segment
+        db 'ibm             '
+        db 'dec             '
+        db 'dos             '
+        db 'vax             '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+
+    codesg segment
+  			
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,0
+        mov cx,4h
+        
+    s1:
+        push cx
+        mov si,0
+        mov cx,3h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        pop cx
+    loop s1    ;loop 指令很是相当于高级语言中的 do{}while()
+
+
+    mov ax,4c00h
+    int 21h
+    
+
+    codesg ends
+
+  end start
 
 ```
 
 
 
+#### 问题 7.9：编程，将 datasg 段中的每个单词的前 4 个字母改为大写字母
+
+```assembly
+assume cs:codesg,ds:datasg,ss:stacksg
+  
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+
+    codesg segment		
+    start:  
+        
+
+
+    mov ax,4c00h
+    int 21h
+    
+
+    codesg ends
+
+  end start
+
 ```
 
+- The answer
+
+```assembly
+assume cs:codesg,ds:datasg,ss:stacksg
+  
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,3
+        mov cx,4h
+        
+    s1:
+        push cx
+        mov si,0
+        mov cx,4h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        pop cx
+    loop s1
+
+
+    mov ax,4c00h
+    int 21h
+    
+
+    codesg ends
+
+  end start
+
+```
+
+
+
+
+
+## 第八章 数据处理的两个问题
+
+### 两个基本问题
+
+1. 处理的数据在什么地方？
+
+2. 要处理的数据有多长？
+
+- 虽然讨论在 8086CPU 上进行，但是这两个基本问题却是普遍的，对任何一个处理机都存在
+- sreg 的集合包括：ds,ss,cs,es
+- reg 的集合包括：ax, bx, cx, dx, ah, al, bh, bl, ch, cl, dh, dl, sp, bp, si, di
+
+
+
+### 8.1 bx,si,di 和 bp
+
+- bp 也可以用来表示偏移地址，默认的段地址为 ss; bx,si,di 的段地址默认为 bs.
+
+- 列举几个合法的例子：
+
+  ```assembly
+  mov ax,[si]    ;
+  mov ax,[di]    ;
+  ```
+
+  
+
+- 列举典型的错误示例
+
+  ```assembly
+  mov ax,[bx+bp]    ;
+  mov ax,[si+di]    ;
+  mov ax,[bx]    ;
+  ```
+
+
+
+### 8.2 机器指令处理的数据在什么地方
+
+- 内存中
+- 寄存器中
+- 指令缓冲器中
+- 端口
+
+### 8.3 汇编语言中数据位置的表达
+
+1. 立即数[idata]
+2. 寄存器
+3. 段地址(SA) 和偏移地址(EA)
+
+### 8.4 寻址方式
+
+1. 直接寻址
+2. 寄存器间接寻址
+3. 寄存器相对寻址
+4. 基址变址寻址
+5. 相对基址变址寻址
+
+### 8.5 指令要处理的数据有多长
+
+1. 通过寄存器来指定
+2. 用操作符 X ptr 指明内存单元的长度
+3. 其它方法，比如 push 指令只进行字操作
+
+
+
+### 8.6 寻址方式的综合应用
+
+#### 示例：关于 DEC 公司的一条记录 (1982 年)如下：
+
+|  表头   | 表头  |
+|  ----  | ----  |
+| 公司名称 | DEC |
+| 总裁姓名 | Ken Olsen |
+| 排名 | 137 |
+| 收入 | 40(40 亿美元) |
+| 产品 | PDP(小型机) |
+
+#### 1988 年，公司信息有了如下变化
+
+- 排名升至 38
+- 收入增加了 70 亿美元
+- 产品更新为 VAX 系列计算机
+
+#### 代码实现
+
+- 汇编实现
+
+  ```assembly
+  assume cs:codesg,ds:datasg
+    
+      datasg segment
+          db 'DEC'
+          db 'Ken Oslen'
+          dw 137
+          dw 40
+          db 'PDP'
+      datasg ends
+    
+      codesg segment
+      start:  
+  
+          mov ax,datasg
+          mov ds,ax
+          mov bx,0
+          
+          mov word ptr [bx].0ch,50h
+          add word ptr [bx].0eh,46h
+          mov si,0h
+          mov byte ptr [bx].10h[si],'V'    ;一般 bx 定义整个结构体，idata 定义结构体中的某一个数据项
+                                           ; si 定位数组项中的每个元素
+          inc si
+          mov byte ptr [bx].10h[si],'A'
+          inc si
+          mov byte ptr [bx].10h[si],'X'
+  
+  
+      mov ax,4c00h
+      int 21h
+  
+      codesg ends
+    end start
+  
+  ```
+
+  
+
+- C 实现
+
+  ```c
+  #include <stdio.h>
+    
+  struct Company
+  {
+          char company_name[16];    //公司名称
+          char ceo_name[16];    //总裁姓名
+          int rank;    // 排名
+          int income;    // 收入
+          char famous_product[16];    //著名的产品
+  
+  };
+  
+  struct Company company = {"DEC", "Ken Olsen", 137, 40, "PDP"};
+  void printCompany( struct Company company);
+  
+  int main()
+  {
+          int i;
+          company.rank = 38;
+          company.income = company.income + 70;
+          i = 0;
+          company.famous_product[i] = 'V';    // 和汇编程序，有着很大的相似之处
+          i++;
+          company.famous_product[i] = 'A';
+          i++;
+          company.famous_product[i] = 'V';
+  
+          printCompany( company );
+  
+          return 0;
+  
+  }
+  
+  void printCompany( struct Company company )
+  {
+          printf("company name : %s\n", company.company_name);
+          printf("company ceo name : %s\n", company.ceo_name);
+          printf("company rank : %d\n", company.rank);
+          printf("company income : %d\n", company.income);
+          printf("company famous product : %s\n", company.famous_product);
+  
+  }
+  
+  ```
+
+  
+
+### 8.7 div 指令
+
+- 。。。
