@@ -1146,4 +1146,272 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
 ### 8.7 div 指令
 
-- 。。。
+#### 编程：计算 100001/100
+
+- 16 进制表示
+
+```assembly
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        
+    datasg ends
+  
+    codesg segment
+    start:  
+        mov dx,1h
+        mov ax,86A1h
+        mov bx,64h
+        div bx
+                          ; 结果是 (ax) = 03E8h, (dx) = 0001h 
+
+        
+    mov ax,4c00h
+    int 21h
+
+    codesg ends   
+ end start
+
+```
+
+
+
+- 10 进制表示
+
+```assembly
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        
+    datasg ends
+  
+    codesg segment
+    start:  
+        mov dx,1
+        mov ax,34465
+        mov bx,100
+        div bx
+
+        
+    mov ax,4c00h
+    int 21h
+
+    codesg ends
+
+end start
+
+```
+
+
+
+#### 编程：计算 1001/100
+
+
+
+- 16 进制代码
+
+  ```assembly
+  assume cs:codesg,ds:datasg
+    
+      datasg segment
+          
+      datasg ends
+    
+      codesg segment
+      start:  
+          mov ax,03E9h    ; 经测试，03e9h,小写的 e 也是可以的哦。Windows 平台应该不区分大小写吧
+          mov bl,64h
+          div bl
+  						; 结果 (ax) = 010Ah
+          
+      mov ax,4c00h
+      int 21h
+  
+      codesg ends
+  
+  end start
+  
+  ```
+
+
+
+- 10 进制代码
+
+  ```assembly
+  assume cs:codesg,ds:datasg
+    
+      datasg segment
+          
+      datasg ends
+    
+      codesg segment
+      start:  
+          mov ax,1001
+          mov bl,100
+          div bl
+  
+          
+      mov ax,4c00h
+      int 21h
+  
+      codesg ends
+  
+  end start
+  
+  ```
+
+  
+
+### 8.8 伪指令 dd
+
+- Means double word
+
+  ```assembly
+  datasg segment
+      db 1    ; 占用一个字节 01h
+      dw 1    ; 占用两个字节 0001h
+      dd 1    ; 占用四个字节 00000001h
+  datasg ends
+  ```
+
+#### 再次讲解 1byte = 8bit 1KB = 1024Byte 1MB = 1024KB 1GB = 1024MB
+
+- 一根导线，可以表示数据  0~1；两根导线，可以表示 0~3；三根导线，可以表示数据 0~7；
+
+  四根导线，可以表示数据 0~15，即 一个16 进制的数据等同于四根导线；
+
+- 8086CPU的寄存器是16位（16根导线），可以表示的数据为 0~FFFFh,即 0~65535 （16 进制的数据和16 位的寄存器，记得区分哦）
+
+- 一个内存单元是 1 byte, 8bit 表示 8 根导线，可以表示的数据为 0~FFh, 即 0~255  
+
+- 32 位的地址总线最大的寻址是 2^32 byte = 4G 
+
+  
+
+### 8.9 伪指令 dup
+
+#### dup 配合 db,dw,dd 来使用
+
+```assembly
+db 3 dup (0)    ; 定义了三个字节，00h,00h,00h
+db 3 dup (0,1,2)    ; 定义了九个字节，00h,01h,02h,00h,01h,02h,00h,01h,02h
+
+```
+
+
+
+### 实验 7 寻址方式在结构化数据访问中的应用
+
+#### 代码实现如下：
+
+```assembly
+assume cs:codesg,ds:datasg,ss:stacksg
+  
+    datasg segment
+        ; 年份
+        db '1975','1976','1977','1978','1979','1980','1981','1982','1983'
+        db '1984','1985','1986','1987','1988','1989','1990','1991','1992'
+        db '1993','1994','1995'
+
+        ; 总收入
+        dd 16,22,382,1356,2390,8000,16000,24486,50065,97479,140417,197514
+        dd 345980,590827,803530,1183000,1843000,2759000,3753000,4649000,5937000
+
+        ; 雇员数
+        dw 3,7,9,13,28,38,130,220,476,778,1001,1442,2258,2793,4037,5635,8226
+        dw 11542,14430,15257,17800
+
+    datasg ends
+  
+    table segment
+        ; 人均收入，需要计算出来的数据
+        db 21 dup ('year summ dp ?? ')
+    table ends
+
+    stacksg segment
+        db 16 dup (0h)
+    stacksg ends
+
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,table
+        mov es,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,0h
+        mov bp,0h
+        mov si,0h
+        mov di,0h
+        
+        mov cx,13h
+    s0:
+        ; 赋值总收入
+        mov ax,[bx]
+        mov es:[bp],ax    ; 如果没有使用默认的寄存器，会多一个指令，占用一个字节的。至于原因，暂且不知
+        add bx,2h
+        add bp,2h
+        mov ax,[bx]
+        mov es:[bp],ax
+
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        ; 赋值收益总数
+        mov ax,ds:54h[si]
+        mov es:[bp],ax
+        push ax
+        add si,2h
+        add bp,2h
+        mov ax,ds:54h[si]
+        mov es:[bp],ax
+        mov dx,ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+        
+        ; 雇员数
+        mov ax,ds:0A8h[di]
+        mov es:[bp],ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        ; 赋值平均数
+        pop ax
+        div word ptr ds:0A8h[di]
+        mov es:[bp],ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        add bx,2h
+        add di,2h
+        add si,2h
+
+    loop s0
+        
+    mov ax,4c00h
+    int 21h
+
+    codesg ends   
+ end start
+
+```
+
+
+
+
+
+## 第九章 转移指令的原理
+
+- 可以修改 IP，或同时修改 CS 和 IP 的指令统称为转移指令
+
+
+
+### 9.1 操作符 offset
+
+......
