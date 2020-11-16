@@ -1031,6 +1031,43 @@ assume cs:codesg,ds:datasg,ss:stacksg
 2. 用操作符 X ptr 指明内存单元的长度
 3. 其它方法，比如 push 指令只进行字操作
 
+   ```assembly
+assume cs:codesg,ds:datasg,ss:stacksg
+  
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        inc byte ptr ds:[0]    ; 成功
+        push ds:[0]    ; push，pop 的操作单位是 字，且可以直接操作内存，普通寄存器，段寄存器
+        pop ds    ; 成功,结果为 2E32h
+        push ds
+        
+    mov ax,4c00h
+    int 21h
+    
+
+    codesg ends
+
+  end start
+
+   ```
+
+
+
 
 
 ### 8.6 寻址方式的综合应用
