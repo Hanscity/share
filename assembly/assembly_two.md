@@ -24,9 +24,14 @@
   ;al =  01111011B
   ```
 
+
+#### 扩展： PHP 位运算的 ini 设置应用
+> https://www.php.net/manual/zh/language.operators.bitwise.php
+
+
   
 
-#### 扩展：PHP 位运算的应用
+#### 扩展：PHP 位运算的业务应用
 
 - 应用背景：用户三百万，用户字段，当时接近 100个，还在不断扩展；并发比较高，用户信息会同步 redis；在一些特定的场景下，
 
