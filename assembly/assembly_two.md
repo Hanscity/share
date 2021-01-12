@@ -29,7 +29,7 @@
 > https://www.php.net/manual/zh/language.operators.bitwise.php
 
 
-  
+
 
 #### 扩展：PHP 位运算的业务应用
 
@@ -1038,18 +1038,19 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
    ```assembly
 assume cs:codesg,ds:datasg,ss:stacksg
-  
+    
     datasg segment
         db '1. display      '
         db '2. brows        '
         db '3. replace      '
         db '4. modify       '
     datasg ends
-  
+    
     stacksg segment    ;定义一个栈段，容量为 16 字节
 
         db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
     stacksg ends
+   ```
 
 
     codesg segment
@@ -1063,7 +1064,7 @@ assume cs:codesg,ds:datasg,ss:stacksg
         
     mov ax,4c00h
     int 21h
-    
+
 
     codesg ends
 
@@ -1132,7 +1133,7 @@ assume cs:codesg,ds:datasg,ss:stacksg
       codesg ends
     end start
   
-  ```
+   ```
 
   
 
@@ -1456,4 +1457,29 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
 ### 9.1 操作符 offset
 
-......
+操作符 offset 在汇编语言中是由编译器处理的符号，它的功能是取得标号的偏移地址
+
+
+
+### 9.2 jmp 指令
+
+jmp 为无条件转移指令，可以只修改 IP，也可以同时修改 CS 和 IP
+
+不同的给出目的地址的方法，和不同的转移位置，对应有不同的 jmp 指令
+
+
+
+### 9.3 转移的目的地址在指令中的 jmp 指令
+
+1. jmp short 标号
+2. jmp near ptr 标号
+
+具体的计算涉及到补码（附注 2）
+
+
+### 9.4 转移的目的地址在指令中的 jmp 指令
+
+“jmp far ptr 标号 ” 实现的是段间转移，又称为远转移
+
+### 附注 3 汇编编译器（masm.exe) 对 jmp 的相关处理
+
