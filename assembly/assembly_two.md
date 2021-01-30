@@ -1529,6 +1529,195 @@ end start
 #### 习题2
 
 ```assembly
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        dd 12345678H
+    datasg ends
+  
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov bx,0
+        mov [bx],bx
+        mov [bx+2],cs
+        jmp dword ptr ds:[0]
+        
+    mov ax,4c00h
+    int 21h
+
+    codesg ends
+
+end start
+```
+
+
+
+### 9.7 jcxz 指令
+
+“jcxz 标号” 的功能相当于： if ((cx) == 0) jmp short 标号；
+
+jcxz 指令为有条件转移指令，所有的有条件转移指令都是短转移
+
+
+
+习题：利用 jcxz 指令，实现在内存 2000H 段中查找第一个值为 0 的字节，找到后，将它的偏移地址存储在 dx 中
+
+```assembly
+assume cs:code
+  
+    code segment
+    start:  
+        mov ax,2000H
+        mov ds,ax
+        mov bx,0
+    s:
+        mov ch,0
+        mov cl,[bx]
+        jcxz ok
+        inc bx
+        jmp short s
+    ok:
+        mov dx,bx
+
+    mov ax,4c00h
+    int 21h
+
+    code ends
+
+end start
 
 ```
+
+
+
+思考：在高级程序中， if (a == b) {...}, 这怎么实现的呢？ 莫非是如上习题所示吧~~
+
+
+
+
+
+### 9.8 loop 指令
+
+loop 指令为循环指令，所有的循环指令都是短转移
+
+loop 标号的功能相当于：
+
+1. (cx)--
+2. if ((cx) != 0) jmp short 标号;
+
+```assembly
+assume cs:code
+  
+    code segment
+    start:  
+        mov ax,2000H
+        mov ds,ax
+        mov bx,0
+    s:
+        mov ch,0
+        mov cl,[bx]
+        
+        inc cx    ## 主要是针对 loop 开始前的 (cx)--
+        inc bx
+        loop s
+        dec bx
+        mov dx,bx
+
+    mov ax,4c00h
+    int 21h
+
+    code ends
+
+end start
+```
+
+
+
+
+
+### 9.9 根据位移进行转移的意义
+
+1. jmp short 标号
+2. jmp near ptr 标号
+3. jcxz 标号
+4. loop 标号
+
+以上几种，对应的机器码中都不包含转移的目的地址，而是包含到达目的地址的位移。这种设计，方便了程序段在内存中的浮动装配
+
+
+
+### 9.10 编译器对转移位移超界的检测
+
+故意超界的例子如下：
+
+```assembly
+assume cs:code
+  
+    code segment
+    start:  
+        jmp short s
+        db 128 dup (0)
+    s:
+        mov ax,0fffh
+        
+    mov ax,4c00h
+    int 21h
+
+    code ends
+
+end start
+
+```
+
+
+
+```
+masm test.asm;
+test.asm(5):error A2053: Jump out of range by 1 byte(s)
+```
+
+
+
+### 实验 8  分析一个奇怪的程序
+
+```assembly
+assume cs:codesg
+codesg segment
+
+    mov ax, 4c00h
+    int 21h
+
+start: 
+    mov ax, 0
+s:
+    nop
+    nop
+
+    mov di, offset s
+    mov si, offset s2
+    mov ax, cs:[si]
+    mov cs:[di],ax
+
+s0: 
+    jmp short s
+
+s1: 
+    mov ax, 0
+    int 21h
+    mov ax, 0
+
+s2: 
+    jmp short s1
+    nop
+
+
+codesg ends
+end start
+```
+
+......
+
+
 
