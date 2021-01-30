@@ -1483,6 +1483,52 @@ jmp 为无条件转移指令，可以只修改 IP，也可以同时修改 CS 和
 
 ### 附注 3 汇编编译器（masm.exe) 对 jmp 的相关处理
 
-
 ### 9.5 转移地址在寄存器中的 jmp 指令
+
+指令格式： jmp 16-reg
+
+功能：（IP）=（16-reg）
+
+
+
+### 9.6 转移地址在内存中的 jmp 指令
+
+转移地址在内存中的 jmp 指令有两种格式：
+
+1.  jmp word ptr 内存单元地址（设置 IP，段内转移）
+2.  jmp dword ptr 内存单元地址（高位地址设置 CS，低位地址设置 IP，段间转移）
+
+
+
+#### 习题1
+
+```assembly
+assume cs:codesg,ds:datasg
+  
+    datasg segment
+        db 0,0
+    datasg ends
+  
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov bx,0
+        jmp word ptr [bx+1]
+        
+    mov ax,4c00h
+    int 21h
+
+    codesg ends
+
+end start
+```
+
+
+
+#### 习题2
+
+```assembly
+
+```
 
