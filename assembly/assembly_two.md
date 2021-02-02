@@ -1717,7 +1717,245 @@ codesg ends
 end start
 ```
 
-......
+代码分析：将 jmp short s1 的字节数据赋值给了 offset s 处，而 jmp 命令是记录相对的移动，于是到达了目的
 
 
+
+### 实验 9 根据材料编程
+
+编程： 在屏幕中间分别显示绿色，绿底红色，白底蓝色的字符串 'welcome to masm!' 
+
+
+
+## 第十章 CALL 和 RET 指令
+
+
+
+### 10.1 ret 和 retf
+
+习题：补全程序，实现从内存 1000:0000 处开始执行指令
+
+```assembly
+assume cs:codesg
+
+stack segment
+    db 16 dup (0)
+stack ends
+
+
+codesg segment
+
+start: 
+    mov ax, stack
+    mov ss, ax
+    mov sp, 16
+    mov ax, 1000
+
+    push ax
+    mov ax, 0
+    push ax
+    retf
+    
+    mov ax, 4c00h
+    int 21h
+
+
+codesg ends
+end start
+
+```
+
+
+
+### 10.2 call 指令
+
+
+
+### 10.3 依据位移进行转移的 call 指令
+
+CPU 执行 “call 标号” 时，相当于进行：
+
+1. push IP
+2. jmp near ptr 标号
+
+```assembly
+
+assume cs:codesg
+
+stack segment
+    db 16 dup (0)
+stack ends
+
+codesg segment
+
+start: 
+    mov ax, 0
+    call s
+    inc ax
+s:
+    pop ax
+    mov ax, 4c00h
+    int 21h
+
+codesg ends
+end start
+```
+
+上面程序执行后，(ax) == 6
+
+
+
+### 10.4 转移的目的地址在指令中的 call 指令
+
+CPU 执行 “call far ptr 标号” 时，相当于进行：
+
+1. push CS
+2. push IP
+3. jmp far ptr 标号
+
+
+
+
+
+### 10.5 转移地址在寄存器中的 call 指令
+
+检测点 10.4
+
+下面的程序执行后， ax  中的数值为多少 ？
+
+```assembly
+assume cs:codesg
+
+stack segment
+    db 16 dup (0)
+stack ends
+
+codesg segment
+
+start: 
+    mov ax, 6
+    call ax
+    inc ax
+    mov bp, sp
+    add ax, [bp] ## 默认的段寄存器为 ss
+
+    mov ax, 4c00h
+    int 21h
+
+codesg ends
+end start
+
+```
+
+(ax) == 11
+
+
+
+### 10.6 转移地址在内存中的 call 指令
+
+
+
+检测点 10.5 
+
+1. 下面的程序执行后，ax 中的数值为多少 ？
+
+   ```assembly
+   assume cs:codesg
+   
+   stack segment
+       db 16 dup (0)
+   stack ends
+   
+   codesg segment
+   start: 
+       mov ax, stack
+       mov ss, ax
+       mov sp, 16
+       mov ds, ax
+       mov ax, 0
+       call word ptr ds:[0EH]
+       inc ax
+       inc ax
+       inc ax
+       
+       mov ax, 4c00h
+       int 21h
+   
+   codesg ends
+   end start
+   ```
+
+2. 下面的程序执行后， ax 和 bx 中的数值为多少 ？
+
+   ```assembly
+   assume cs:codesg
+   
+   datasg segment
+       dw 8 dup (0)
+   datasg ends
+   
+   stack segment
+       db 16 dup (0)
+   stack ends
+   
+   codesg segment
+   start: 
+       mov ax, datasg
+       mov ss, ax
+       mov sp, 16
+       mov word ptr ss:[0], offset s
+       mov ss:[2], cs
+       call dword ptr ss:[0]
+       nop
+   s:  
+       mov ax,offset s
+       sub ax, ss:[0cH]
+       mov bx, cs
+       sub bx, ss:[0eH]
+       
+       mov ax, 4c00h
+       int 21h
+   
+   codesg ends
+   end start
+   ```
+
+   (ax) == 1, (bx) == 0; 先看，推导出结果，然后 debug 验证
+
+
+
+### 10.7 call 和 ret 的配合使用
+
+现在来看一下，如何将它们配合使用来实现子程序的机制
+
+```assembly
+assume cs:codesg
+
+codesg segment
+start: 
+    mov ax, 1
+    mov cx, 3
+    call s
+    mov bx, ax
+
+    mov ax, 4c00h
+    int 21h
+s: 
+    add ax, ax
+    loop s
+    ret
+    
+codesg ends
+end start
+```
+
+(bx) == 8, 先看，推导出结果，然后 debug 验证。
+
+可以看出，call 和 ret 配合，简直天生一对。call 有 push ip 的动作，ret 有 pop ip 的动作，这一套下来，不就是函数的调用莫。汇编称为子模块的调用。
+
+jmp,  jcxz, loop, ret, retf, call ,这几个命令一配合，还真是落叶冰纷呀~ 其实第九章，第十章，就是讲了这几个命令
+
+  
+
+### 10.8 mul 指令
 
