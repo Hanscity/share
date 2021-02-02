@@ -1959,3 +1959,79 @@ jmp,  jcxz, loop, ret, retf, call ,这几个命令一配合，还真是落叶冰
 
 ### 10.8 mul 指令
 
+mul, 表示相乘
+
+一些基础的命令汇总如下：
+
+- mov
+- add
+- inc
+- sub
+- dec
+- mul
+- div
+- push
+- pop
+- jmp
+- jczx
+- loop
+- ret
+- retf
+
+
+
+### 10.9 模块化程序设计
+
+如上 10.7 总结所示，ret 和 call 适合做模块化程序设计
+
+
+
+### 10.10 参数和结果传递的问题
+
+实际上就是在探讨，应该如何存储子程序需要的参数和产生的返回值
+
+编程，计算 data 段中第一组数据的 3 次方，结果保存在后面一组 dword 单元中
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    dw 1, 2, 3, 4, 5, 6, 7, 8
+    dd 0, 0, 0, 0, 0, 0, 0, 0
+datasg ends
+
+codesg segment
+start: 
+    mov cx, 8
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+
+s:  
+    mov bx, [si]
+    call cube
+    mov ds:[10h+si], ax
+    mov ds:[12h+si], dx
+    add si, 2
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+    
+cube: 
+    mov ax, bx
+    mul bx
+    mul bx
+    ret
+
+codesg ends
+end start
+
+```
+
+
+
+### 10.11 批量数据的传递
+
+设计一个子程序，功能将一个全是字母的字符串转化为大写
+
