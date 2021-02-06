@@ -2035,3 +2035,110 @@ end start
 
 设计一个子程序，功能将一个全是字母的字符串转化为大写
 
+方式一：
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db 'conversation'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+    mov cx, 12
+    call capital
+    
+    mov ax, 4c00h
+    int 21h
+    
+capital: 
+    and byte ptr [si], 11011111b
+    inc si
+    loop capital
+    ret
+
+codesg ends
+end start
+```
+
+
+
+方式二：
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db 'conversation'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+    mov cx, 12
+s:
+    call capital
+    inc si
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+    
+capital: 
+    and byte ptr [si], 11011111b
+    ret
+
+codesg ends
+end start
+```
+
+书中的例子是方式一，其实我更喜欢用方式二
+
+
+
+
+
+### 附注 4 用栈
+
+编程一：计算  (a-b) ^3, a, b 为字型数据 （此例中假设 a=3, b=1）
+
+```assembly
+assume cs:codesg
+
+codesg segment
+start: 
+    mov ax, 1
+    push ax
+    mov ax, 3
+    push ax
+    call difcube
+
+    mov ax, 4c00h
+    int 21h
+
+difcube:
+    push bp ; 这个动作和后面的 pop bp 是保证子程序在调用之后，恢复原寄存器的值
+    mov bp, sp
+    mov ax, [bp+4]
+    mov bx, [bp+6]
+    sub ax, bx
+    mul ax
+    mul ax
+    pop bp
+    ret 4 ; 这个动作也是保证子程序在调用之后，栈的 sp 指向原来的值
+
+    
+codesg ends
+end start
+```
+
+
+
+### 10.12 寄存器冲突的问题
+
