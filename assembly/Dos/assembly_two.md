@@ -2142,3 +2142,82 @@ end start
 
 ### 10.12 寄存器冲突的问题
 
+1. 设计一个子程序，将一个全是字母，以 0 结尾的字符串，转化为大写
+
+   ```assembly
+   assume cs:codesg
+   
+       datasg segment
+           db 'conversation'
+       datasg ends
+   
+       codesg segment
+       start: 
+           mov ax, datasg
+           mov ds, ax
+           mov si, 0
+           mov ch, 0
+           call capital
+   
+           mov ax, 4c00h
+           int 21h
+   
+       capital: 
+           mov cl,[si]
+           jcxz ok
+           and byte ptr [si], 11011111b
+           inc si
+           jmp short capital
+       ok:
+           ret
+   
+       codesg ends
+       end start
+   ```
+
+2. 将 data 段中的字符串全部转为大写
+
+   ```assembly
+   assume cs:codesg
+   
+   datasg segment
+       db 'word',0
+       db 'unix',0
+       db 'wind',0
+       db 'good',0
+   datasg ends
+   
+   codesg segment
+   start: 
+       mov ax, datasg
+       mov ds, ax
+       mov si, 0
+       mov cx, 4
+   s:
+       push cx
+       call capital
+       pop cx
+       inc si
+       loop s
+   
+       mov ax, 4c00h
+       int 21h
+       
+   capital: 
+       mov ch, 0
+   	mov cl,[si]
+   	jcxz ok
+       and byte ptr [si], 11011111b
+       inc si
+       jmp short capital
+   ok:
+   	ret
+   
+   codesg ends
+   end start
+   ```
+
+   
+
+
+
