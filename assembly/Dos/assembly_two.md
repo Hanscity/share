@@ -1740,20 +1740,26 @@ start:
     mov es, ax
 
     mov si, 0
-    mov di, 0
+    mov di, 09a4h
     mov cx, 15
-s:      
+s1:      
     mov al, [si]
     mov es:[di], al
-    mov byte ptr es:[di+1],2
+    mov byte ptr es:[di+1],2h
+
+    mov es:[di+160],al
+    mov byte ptr es:[di+160+1],24h
+
+    mov es:[di+320],al
+    mov byte ptr es:[di+320+1],71h
+
     inc si
     add di, 2
-    loop s
+    loop s1
 
     mov ax, 4c00h
     int 21h
  
-
 codesg ends
 end start
 ```
