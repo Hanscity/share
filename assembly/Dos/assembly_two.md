@@ -1725,6 +1725,41 @@ end start
 
 编程： 在屏幕中间分别显示绿色，绿底红色，白底蓝色的字符串 'welcome to masm!' 
 
+```assembly
+assume cs:codesg
+
+datasg segment
+    db 'welcome to masm'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, datasg
+    mov ds, ax
+    mov ax, 0B800h
+    mov es, ax
+
+    mov si, 0
+    mov di, 0
+    mov cx, 15
+s:      
+    mov al, [si]
+    mov es:[di], al
+    mov byte ptr es:[di+1],2
+    inc si
+    add di, 2
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+ 
+
+codesg ends
+end start
+```
+
+
+
 
 
 ## 第十章 CALL 和 RET 指令
