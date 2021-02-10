@@ -2398,5 +2398,116 @@ end start
 
    
 
+### 实验 10 编写子程序
+
+#### 显示字符串： 在屏幕的 8 行 3 列，用绿色显示 data 段中的字符串
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db 'Welcome to masm!',0
+datasg ends
+
+codesg segment
+start: 
+    mov dh, 8
+    mov dl, 3
+    mov cl, 2
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+    call show_str
+
+    mov ax, 4c00h
+    int 21h
+
+show_str:
+    push ax
+    push es
+    push dx
+    push bx
+    push si
+    push cx
+    ; 计算显存中的位置，保存在 bx 中
+    mov ax, 0B800h
+    mov es, ax
+    mov al, dh
+    add al, 3
+    mov ah, 160
+    mul ah
+    mov bx, ax
+    mov al, dl
+    mov ah, 2
+    mul ah
+    add bx, ax
+    mov al, cl ; 保存颜色的值
+s1: 
+    mov ch, 0
+    mov cl, ds:[si]
+    mov es:[bx], cl
+    mov es:[bx+1], al
+    jcxz s2
+    inc si
+    add bx, 2
+    loop s1
+s2:
+    pop cx
+    pop si
+    pop bx
+    pop dx
+    pop es
+    pop ax
+    ret
+    
+codesg ends
+end start
+```
+
+
+
+#### 解决除法溢出的问题
+
+应用举例： 计算 1000000/10 (F4240H/0AH)
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, 4240H
+    mov dx, 000FH
+    mov cx, 0AH
+    call divdw
+    
+    mov ax, 4c00h
+    int 21h
+
+divdw:
+
+    mov bx, datasg
+    mov ds, bx
+    mov ds:[0], ax
+
+    mov ax, dx
+    mov dx, 0
+    div cx
+    mov ds:[2],ax
+
+    mov ax, ds:[0]
+    div cx
+    mov cx, dx
+    mov dx, ds:[2]
+   
+    ret
+
+codesg ends
+end start
+```
+
 
 
