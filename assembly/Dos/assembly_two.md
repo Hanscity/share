@@ -1483,6 +1483,135 @@ jmp 为无条件转移指令，可以只修改 IP，也可以同时修改 CS 和
 
 ### 附注 3 汇编编译器（masm.exe) 对 jmp 的相关处理
 
+#### 向前转移
+
+1. 如果 disp 属于 [-128,127],  汇编代码
+
+   ```assembly
+   assume cs:codesg
+   
+   codesg segment
+   start: 
+   
+   s:
+       jmp s
+       jmp short s
+       jmp near ptr s
+       jmp far ptr s
+   
+       mov ax, 4c00h
+       int 21h
+    
+   codesg ends
+   end start
+   ```
+
+   反汇编查看，分别对应着：
+
+   ```assembly
+   EBFE ; -2
+   EBFC ; -4
+   EBFA ; -6
+   EBF8 ; -8
+   ```
+
+2. 如果 disp 属于 [-32768,32767],  汇编查看
+
+   ```assembly
+   assume cs:codesg
+   
+   codesg segment
+   start: 
+   
+   s:
+       db 100 dup (0b8h, 0, 0)
+       jmp s
+       jmp near ptr s
+       jmp far ptr s
+   
+       mov ax, 4c00h
+       int 21h
+    
+   codesg ends
+   end start
+   ```
+
+   反汇编查看 (-u 076a:0120)，分别对应着：
+
+   ```assembly
+   E9D1FE ; 一起占用三个字节，偏移的距离占用了两个字节，可以看出这是一个负数
+   E9CEFE ; 一起占用三个字节，偏移的距离占用了两个字节，可以看出这是一个负数
+   EA00006A07 ; 一起占用五个字节，偏移的距离占用了四个字节，一个是段地址，一个是偏移地址
+   ```
+
+#### 向后转移
+
+1. 如果 disp 属于 [-128,127],  汇编代码
+
+   ```assembly
+   assume cs:codesg
+   
+   codesg segment
+   start: 
+       jmp short s
+       jmp s
+       jmp near ptr s
+       jmp far ptr s
+   s:
+       mov ax, 0
+   
+       mov ax, 4c00h
+       int 21h
+    
+   codesg ends
+   end start
+   ```
+
+   反汇编查看：
+
+   ```assembly
+   EB0B ; 可以看出这是正数
+   EB09 ; 
+   90 ; NOP
+   EB06 ;
+   90 ; NOP
+   EB03 ; 可以看出这是偏移三个字节。一起将占用五个字节，EB 占用一个字节，距离占用一个字节，留空三个字节
+   90 ; NOP
+   90 ; NOP
+   90 ; NOP
+   ```
+
+2. 如果 disp 属于 [-32768,32767],  汇编代码
+
+   ```assembly
+   assume cs:codesg
+   
+   codesg segment
+   start: 
+       jmp s
+       jmp near ptr s
+       jmp far ptr s
+       db 100 dup (0b8h, 0, 0)
+   s:
+       mov ax, 0
+   
+       mov ax, 4c00h
+       int 21h
+    
+   codesg ends
+   end start
+   ```
+
+   反汇编查看：
+
+   ```assembly
+   E93401 ; JMP 0137
+   E93101 ; JMP 0137
+   EA37016A07 ; JMP 076A:0137
+   ```
+
+   
+
 ### 9.5 转移地址在寄存器中的 jmp 指令
 
 指令格式： jmp 16-reg
@@ -1740,18 +1869,25 @@ start:
     mov es, ax
 
     mov si, 0
-    mov di, 09a4h
+    mov di, 09a0h
     mov cx, 15
 s1:      
     mov al, [si]
+    ; 绿色
     mov es:[di], al
     mov byte ptr es:[di+1],2h
 
+    ; 绿底红色
     mov es:[di+160],al
     mov byte ptr es:[di+160+1],24h
 
+    ; 白底蓝色
     mov es:[di+320],al
     mov byte ptr es:[di+320+1],71h
+
+    ; 红底闪烁绿字
+    mov es:[di+480],al
+    mov byte ptr es:[di+480+1],0c2h
 
     inc si
     add di, 2
@@ -1764,9 +1900,11 @@ codesg ends
 end start
 ```
 
+分析：
 
+- 位置：09a0h,  (80 * (12 + 3) + 32)  * 2，*2 是因为两个字节才表示一个字符串 ;12 + 3 是因为直接执行 g 076B:---- 之后，屏幕会向上移动 3 行 ;
 
-
+  ​			+ 32 是因为一行 80 个字节，（80-16）/2 = 32, 就从这里开始
 
 ## 第十章 CALL 和 RET 指令
 
