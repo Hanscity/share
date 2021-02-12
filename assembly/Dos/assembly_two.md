@@ -968,7 +968,150 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
 ```
 
+我在这里，测试一下，是不是一定要 assume 等定义才行
 
+```assembly
+assume cs:codesg
+  
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,3
+        mov cx,4h
+        
+    s1:
+        push cx
+        mov si,0
+        mov cx,4h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        pop cx
+    loop s1
+
+    mov ax,4c00h
+    int 21h
+    
+    codesg ends
+
+  end start
+```
+
+-- Success
+
+```assembly
+assume cs:codesg,ss:stacksg
+  
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,3
+        mov cx,4h
+        
+    s1:
+        push cx
+        mov si,0
+        mov cx,4h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        pop cx
+    loop s1
+
+    mov ax,4c00h
+    int 21h
+    
+    codesg ends
+
+  end start
+```
+
+-- Fail (Symbol not defined: STACKSG)
+
+```assembly
+    datasg segment
+        db '1. display      '
+        db '2. brows        '
+        db '3. replace      '
+        db '4. modify       '
+    datasg ends
+  
+    stacksg segment    ;定义一个栈段，容量为 16 字节
+
+        db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'
+    stacksg ends
+
+    codesg segment
+    start:  
+        mov ax,datasg
+        mov ds,ax
+        mov ax,stacksg
+        mov ss,ax
+
+        mov bx,3
+        mov cx,4h
+        
+    s1:
+        push cx
+        mov si,0
+        mov cx,4h
+    s2:
+        mov ah,[bx+si]
+        and ah,11011111B
+        mov [bx+si],ah
+        inc si
+    loop s2
+
+        add bx,10h
+        pop cx
+    loop s1
+
+    mov ax,4c00h
+    int 21h
+    
+  codesg ends
+  end start
+```
+
+-- Failed (Missing or unreachable: CS)
 
 
 
