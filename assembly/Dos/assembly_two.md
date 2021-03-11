@@ -2417,6 +2417,8 @@ end start
 
 书中的例子是方式一，其实我更喜欢用方式二
 
+以上两种方式都是用寄存器来传递参数，下面将介绍用栈来传递参数~
+
 
 
 
@@ -2534,6 +2536,51 @@ end start
    end start
    ```
 
+   优化如下：
+   
+   ```assembly
+   assume cs:codesg
+   
+   datasg segment
+       db 'word',0
+       db 'unix',0
+       db 'wind',0
+       db 'good',0
+   datasg ends
+   
+   codesg segment
+   start: 
+       mov ax, datasg
+       mov ds, ax
+       mov si, 0
+       mov cx, 4
+   s:
+       call capital
+       add si, 5
+       loop s
+   
+       mov ax, 4c00h
+       int 21h
+       
+   capital: 
+       push cx
+       push si
+   change:
+       mov ch, 0
+   	mov cl, [si]
+   	jcxz ok
+       and byte ptr [si], 11011111b
+       inc si
+       jmp short change
+   ok:
+       pop si
+       pop cx
+   	ret
+   
+   codesg ends
+   end start
+   ```
+   
    
 
 ### 实验 10 编写子程序
