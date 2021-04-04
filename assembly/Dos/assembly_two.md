@@ -2040,9 +2040,9 @@ end start
 
 分析：
 
-- 位置：09a0h,  (80 * (12 + 3) + 32)  * 2，*2 是因为两个字节才表示一个字符串 ;12 + 3 是因为直接执行 g 076B:---- 之后，屏幕会向上移动 3 行 ;
+- 位置：09a0h = (80 * (12 + 3) + 32)  * 2
 
-  ​			+ 32 是因为一行 80 个字节，（80-16）/2 = 32, 就从这里开始
+  解读如下： DOS7 的屏幕是横向 80 个字符，纵向 25 行。中间位置，我选择在第 12 行，12 + 3 是因为直接执行 g 076B:0044 之后，屏幕会向上移动 3 行左右 ; welcome to masm 占据 16 个字符大小，（80-16）/2 = 32, 一行的中间就从这里开始；*2 是因为两个字节才表示一个字符串 ，低位字节存储字符的 ASCII 码，高位字节表示该字符的属性。
 
 ## 第十章 CALL 和 RET 指令
 
@@ -2649,6 +2649,72 @@ codesg ends
 end start
 ```
 
+以下程序为注释版：
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db 'Welcome to masm!',0
+datasg ends
+
+codesg segment
+start: 
+    mov dh, 8
+    mov dl, 3
+    mov cl, 2
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+    call show_str
+
+    mov ax, 4c00h
+    int 21h
+
+show_str:
+    push ax    ; 这里的一段 push 和 后面的一段 pop 是为了恢复调用前寄存器的值
+    push es
+    push dx
+    push bx
+    push si
+    push cx
+                       ; 开始计算显存中的位置，保存在 bx 中
+    mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
+                       ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+    mov es, ax
+    mov al, dh
+    add al, 3    ; 直接 g 命令执行之后，屏幕会往下滑动三行
+    mov ah, 160  ; 一行 80 个字符，每个字符需要两个字节来保存
+    mul ah    ; 如果是 8 位乘法，一个默认放在 AL 中，另一个放在...
+              ; 结果默认放在 AX 中
+    mov bx, ax    ; 将第 8 行的计算结果赋值给 bx
+    mov al, dl    ; 开始计算第三行的值
+    mov ah, 2
+    mul ah
+    add bx, ax    ; 8 行 3 列计算完成
+    mov al, cl ; 保存颜色的值
+s1: 
+    mov ch, 0
+    mov cl, ds:[si]    ; 这里和 jcxz 配合，遇到 0 则结束
+    mov es:[bx], cl
+    mov es:[bx+1], al
+    jcxz s2
+    inc si
+    add bx, 2
+    loop s1
+s2:
+    pop cx
+    pop si
+    pop bx
+    pop dx
+    pop es
+    pop ax
+    ret
+    
+codesg ends
+end start
+```
+
 
 
 #### 解决除法溢出的问题
@@ -2696,3 +2762,335 @@ end start
 
 
 
+因为实在是太容易忘记了(- -)，下面再写一个注释版：
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, 4240H
+    mov dx, 000FH
+    mov cx, 0AH
+
+    ; 子程序的结果要求：(dx)=结果的高 16 位, (ax)=结果的低 16 位, (cx)=余数
+    call divdw
+    
+    mov ax, 4c00h
+    int 21h
+
+divdw:
+    mov bx, datasg
+    mov ds, bx
+    mov ds:[0], ax
+
+    mov ax, dx
+    mov dx, 0
+    div cx             ; div 的计算结果不好记，商默认保存在 ax 中，余数默认保存在 dx 中
+    mov ds:[2], ax     ; 这里将商保存在数据段中，在下面的代码中，将结果的高16位赋值给 dx 
+
+    mov ax, ds:[0]
+    div cx             ; 这里比较难理解的是，连续进行了两次 div 运算，稍微有点绕
+    mov cx, dx         ; cx 保存最终的余数
+    mov dx, ds:[2]     ; 将结果的高16位赋值给 dx
+                       ; ax 默认保存了第二次计算（也就是低16位）的商
+   
+    ret
+
+codesg ends
+end start
+```
+
+
+
+以上这段程序，不仅适合 32 位的溢出除法，也适合 16 位的溢出除法
+
+计算 12666/10 : 
+
+```assembly
+assume cs:codesg
+
+datasg segment
+    db '0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0'
+datasg ends
+
+codesg segment
+start: 
+    mov ax, 12666
+    mov dx, 0    ; 当用于 16 位的除法时，高 16 位设置为 0 即可 
+    			 ; 可以看出，16 位的除法溢出，可以用一次 32 
+    mov cx, 10
+
+    ; (dx)=结果的高 16 位, (ax)=结果的低 16 位, (cx)=余数
+    ; (dx)=0, (ax)=04F2 (16 进制数据 04F2, 10 进制数据 1266)，(cx)=0006
+    ; 结果显示，完全正确
+    call divdw
+    
+    mov ax, 4c00h
+    int 21h
+
+divdw:
+
+    mov bx, datasg
+    mov ds, bx
+    mov ds:[0], ax
+
+    mov ax, dx
+    mov dx, 0
+    div cx            ; div 的计算结果不好记，商默认保存在 ax 中，余数默认保存在 dx 中
+    mov ds:[2], ax    ; 这里将商保存在数据段中，在下面的代码中，将结果的高16位赋值给 dx 
+
+    mov ax, ds:[0]
+    div cx            ; 这里比较难理解的是，连续进行了两次 div 运算，稍微有点绕
+    mov cx, dx        ; cx 保存最终的余数
+    mov dx, ds:[2]    ; 将结果的高16位赋值给 dx
+                      ; ax 默认保存了第二次计算（也就是低16位）的商
+   
+    ret
+
+codesg ends
+end start
+```
+
+
+
+如果被除数是 16 位的溢出算法，如上例所示：计算 12666/10, 将会更加简单 : 
+
+```assembly
+assume cs:codesg
+
+codesg segment
+start: 
+    mov ax, 12666
+    mov dx, 0    ; 当用于 16 位的除法时，高 16 位设置为 0 即可 
+    			 ; 可以看出，16 位的除法溢出，可以用一次 32 
+    mov cx, 10
+
+    ; (dx)=结果的高 16 位, (ax)=结果的低 16 位, (cx)=余数
+    ; (dx)=0, (ax)=04F2 (16 进制数据 04F2, 10 进制数据 1266)，(cx)=0006
+    ; 结果显示，完全正确
+    call divdw
+    
+    mov ax, 4c00h
+    int 21h
+
+divdw:
+
+    mov dx, 0    
+    div cx            
+    mov cx, dx        ; cx 保存最终的余数
+    mov dx, 0         ; 高位肯定是 0
+   
+    ret
+
+codesg ends
+end start
+```
+
+
+
+#### 3. 数值显示
+
+编程：将数据 12666 以十进制的形式在屏幕的 8 行 3 列，用绿色显示出来。
+
+```assembly
+assume cs:codesg
+  
+    ; 这个数据段，用来保存转化为字符串的数字
+    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（666210）
+    showsg segment
+        db 40 dup (0)
+    showsg ends
+
+    ; 例如有数字 12666，将倒序（666210）转为正序保存（12666）
+    sortsg segment
+        db 40 dup (0)
+    sortsg ends
+
+    ; 栈
+    stacksg segment
+        db 100 dup (0)
+    stacksg ends
+
+    codesg segment
+    start:  
+        mov ax, 12666
+        mov dh, 8         ; 在屏幕的第 8 行
+        mov dl, 3         ; 在屏幕的第 3 列
+        mov cl, 2         ; 绿色
+
+        call dtoc         ; 将 16 进制的数字转化为字符串的数字
+        call sort_dtoc    ; 将 16 进制的数字转化为字符串的数字排序为正序
+        call show_str     ; 在 DOS 屏幕上的规定位置展示
+        
+        mov ax,4c00h
+        int 21h
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    sort_dtoc:
+        push ds
+        push es
+        push bx
+        push si
+        push cx
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, sortsg
+        mov ds, bx
+
+        mov si, 0
+        mov bx, 0
+    
+    zero_index:
+        mov ch, 0
+        mov cl, es:[si]
+        jcxz sort_start
+        inc si
+        jmp short zero_index
+
+    sort_start:
+        mov cx, si
+        jcxz sort_over
+        dec si                 ; 减去 0 的那个数字，然后开始倒着赋值
+                               ; 不用栈的原因是，栈是 2 个字节为基本单位
+        mov cl, es:[si]
+        mov ds:[bx], cl
+        inc bx
+        jmp short sort_start
+
+    sort_over:
+        pop cx
+        pop si
+        pop bx
+        pop es
+        pop ds
+
+    ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--end 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    dtoc: 
+        
+        
+        push si
+        push cx           ; 子程序调用，用到了哪些变量，则入栈保存之
+        push es
+
+        mov cx, showsg
+        mov es, cx
+        mov si, 0
+
+        
+    s1: 
+        call divdw
+
+        mov cx, ax         ;将结果的商，赋值给 cx, 如果是 0，则结束除法
+        jcxz j1
+
+        add si, 1
+        jmp short s1       ; 这里不可以用 loop s1. 当执行到最后一次， cx == 1 的时候，
+                           ; cx--, 不再执行 loop s1, 往下执行 divdw, 所有结果正确。
+                           ; 但是执行 ret 之后， IP == 0, 又将从头执行，死循环了~
+
+    divdw:
+        push cx
+        push dx
+        
+        mov cx, 10
+        mov dx, 0
+        div cx
+        add dx, 30h        ; 将结果的商转化为字符串，1h 表示数字 1, 31h表示字符串 "1"
+        mov es:[si], dx
+
+        pop dx
+        pop cx
+        ret
+
+    j1: 
+        pop es
+        pop cx
+        pop si
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    show_str:
+        push ds
+        push es
+        push ax
+        push bx
+        push si
+        push cx
+
+        mov ax, sortsg
+        mov ds, ax
+        mov si, 0
+        mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
+                        ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+        mov es, ax
+        mov al, dh
+        add al, 3          ; 直接 g 命令执行之后，屏幕会往下滑动三行
+        mov ah, 160        ; 一行 80 个字符，每个字符需要两个字节来保存
+        mul ah             ; 如果是 8 位乘法，一个默认放在 AL 中，另一个放在...
+                        ; 结果默认放在 AX 中
+        mov bx, ax         ; 将第 8 行的计算结果赋值给 bx
+        mov al, dl         ; 开始计算第三行的值
+        mov ah, 2
+        mul ah
+        add bx, ax         ; 8 行 3 列计算完成
+        mov al, cl         ; 保存颜色的值
+    screen_data: 
+        mov ch, 0
+        mov cl, ds:[si]    ; 这里和 jcxz 配合，遇到 0 则结束
+        mov es:[bx], cl
+        mov es:[bx+1], al
+        jcxz show_over
+        inc si
+        add bx, 2
+        jmp short screen_data
+    show_over:
+        pop cx
+        pop si
+        pop bx
+        pop ax
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+    codesg ends   
+ end start
+```
+
+
+
+
+
+## 第十一章 标志寄存器
