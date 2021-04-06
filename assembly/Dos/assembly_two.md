@@ -1504,10 +1504,10 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
     datasg ends
   
-    table segment
+    tablesg segment
         ; 人均收入，需要计算出来的数据
         db 21 dup ('year summ dp ?? ')
-    table ends
+    tablesg ends
 
     stacksg segment
         db 16 dup (0h)
@@ -1517,17 +1517,15 @@ assume cs:codesg,ds:datasg,ss:stacksg
     start:  
         mov ax,datasg
         mov ds,ax
-        mov ax,table
+        mov ax,tablesg
         mov es,ax
-        mov ax,stacksg
-        mov ss,ax
-
-        mov bx,0h
-        mov bp,0h
-        mov si,0h
-        mov di,0h
         
-        mov cx,13h
+        mov bx,0
+        mov bp,0
+        mov si,0
+        mov di,0
+        
+        mov cx,21
     s0:
         ; 赋值总收入
         mov ax,[bx]
@@ -1539,7 +1537,7 @@ assume cs:codesg,ds:datasg,ss:stacksg
 
 
         add bp,2h    ;内存地址向前移动两位
-        inc bp    ;有一个空格，内存地址向前移动一位
+        inc bp       ;有一个空格，内存地址向前移动一位
 
         ; 赋值收益总数
         mov ax,ds:54h[si]
@@ -1552,14 +1550,14 @@ assume cs:codesg,ds:datasg,ss:stacksg
         mov dx,ax
 
         add bp,2h    ;内存地址向前移动两位
-        inc bp    ;有一个空格，内存地址向前移动一位
+        inc bp       ;有一个空格，内存地址向前移动一位
         
         ; 雇员数
         mov ax,ds:0A8h[di]
         mov es:[bp],ax
 
         add bp,2h    ;内存地址向前移动两位
-        inc bp    ;有一个空格，内存地址向前移动一位
+        inc bp       ;有一个空格，内存地址向前移动一位
 
         ; 赋值平均数
         pop ax
@@ -1567,7 +1565,7 @@ assume cs:codesg,ds:datasg,ss:stacksg
         mov es:[bp],ax
 
         add bp,2h    ;内存地址向前移动两位
-        inc bp    ;有一个空格，内存地址向前移动一位
+        inc bp       ;有一个空格，内存地址向前移动一位
 
         add bx,2h
         add di,2h
@@ -2901,20 +2899,15 @@ end start
 assume cs:codesg
   
     ; 这个数据段，用来保存转化为字符串的数字
-    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（666210）
+    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（66621）
     showsg segment
         db 40 dup (0)
     showsg ends
 
-    ; 例如有数字 12666，将倒序（666210）转为正序保存（12666）
+    ; 例如有数字 12666，将倒序（66621）转为正序保存（12666）
     sortsg segment
         db 40 dup (0)
     sortsg ends
-
-    ; 栈
-    stacksg segment
-        db 100 dup (0)
-    stacksg ends
 
     codesg segment
     start:  
@@ -2930,55 +2923,6 @@ assume cs:codesg
         mov ax,4c00h
         int 21h
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--start 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-    sort_dtoc:
-        push ds
-        push es
-        push bx
-        push si
-        push cx
-
-        mov bx, showsg
-        mov es, bx
-        mov bx, sortsg
-        mov ds, bx
-
-        mov si, 0
-        mov bx, 0
-    
-    zero_index:
-        mov ch, 0
-        mov cl, es:[si]
-        jcxz sort_start
-        inc si
-        jmp short zero_index
-
-    sort_start:
-        mov cx, si
-        jcxz sort_over
-        dec si                 ; 减去 0 的那个数字，然后开始倒着赋值
-                               ; 不用栈的原因是，栈是 2 个字节为基本单位
-        mov cl, es:[si]
-        mov ds:[bx], cl
-        inc bx
-        jmp short sort_start
-
-    sort_over:
-        pop cx
-        pop si
-        pop bx
-        pop es
-        pop ds
-
-    ret
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--end 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
     
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2989,7 +2933,7 @@ assume cs:codesg
         
         
         push si
-        push cx           ; 子程序调用，用到了哪些变量，则入栈保存之
+        push cx            ; 子程序调用，用到了哪些变量，则入栈保存之
         push es
 
         mov cx, showsg
@@ -3032,6 +2976,55 @@ assume cs:codesg
     ;;;    将 16 进制的数字转化为字符串的数字--end
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    sort_dtoc:
+        push ds
+        push es
+        push bx
+        push si
+        push cx
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, sortsg
+        mov ds, bx
+
+        mov si, 0
+        mov bx, 0
+    
+    zero_index:
+        mov ch, 0
+        mov cl, es:[si]
+        jcxz sort_start
+        inc si
+        jmp short zero_index
+
+    sort_start:
+        mov cx, si
+        jcxz sort_over
+        dec si                 ; 减去 0 的那个数字，然后开始倒着赋值
+                               ; 不用栈的原因是，栈是 2 个字节为基本单位
+        mov cl, es:[si]
+        mov ds:[bx], cl
+        inc bx
+        jmp short sort_start
+
+    sort_over:
+        pop cx
+        pop si
+        pop bx
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--end 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;;;    在显存中展示--start
@@ -3049,13 +3042,13 @@ assume cs:codesg
         mov ds, ax
         mov si, 0
         mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
-                        ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+                           ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
         mov es, ax
         mov al, dh
         add al, 3          ; 直接 g 命令执行之后，屏幕会往下滑动三行
         mov ah, 160        ; 一行 80 个字符，每个字符需要两个字节来保存
-        mul ah             ; 如果是 8 位乘法，一个默认放在 AL 中，另一个放在...
-                        ; 结果默认放在 AX 中
+        mul ah             ; 如果是 8 位乘法，默认的一个放在 AL 中
+                           ; 结果默认放在 AX 中
         mov bx, ax         ; 将第 8 行的计算结果赋值给 bx
         mov al, dl         ; 开始计算第三行的值
         mov ah, 2
@@ -3085,12 +3078,1050 @@ assume cs:codesg
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+    codesg ends
+ end start
+```
+
+上面的程序还有缺陷，因为展示的是 12666，并没有超过 16 位的最大 数字 (65535)。如果展示的是 4294967295 
+
+(0FFFF FFFFh) 这样的数字，上面的子程序 dtoc 无法胜任。
+
+还有第二个问题：如果碰到 67000 这样子的数据，在显示的数据段中就是 00076000 0000000 这样，如果 index
+
+从 0 开始，值遇到 0 则结束，那么一开始就会结束。
+
+#### 编程：将数据 4294967295 (0FFFF FFFFh) 以十进制的形式在屏幕的 8 行 3 列，用绿色显示出来
+
+```assembly
+assume cs:codesg
+  
+    ; 这个数据段，用来保存转化为字符串的数字
+    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（66621）
+    showsg segment
+        db 16 dup (0)
+    showsg ends
+
+    ; 这个数据段用来保存 32 位除法时，32 位溢出除法时的数据
+    divsg segment
+        db 40 dup (0)
+    divsg ends
+
+    ; 例如有数字 12666，将倒序（66621）转为正序保存（12666）
+    sortsg segment
+        db 40 dup (0)
+    sortsg ends
+
+    targetsg segment
+        dd 0FFFFFFFFh     ; 十进制数据是：4294967295
+    targetsg ends
+
+    codesg segment
+    start:
+
+        call dtoc         ; 将 16 进制的数字转化为字符串的数字
+        call sort_dtoc    ; 将特定数据段的字符串数字排列为正序
+        call show_str     ; 在 DOS 屏幕上规定位置展示
+
+        mov ax,4c00h
+        int 21h
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    dtoc: 
+        push es
+        push ds
+        push si
+        push cx           
+        push dx
+        push ax
+        push bx
+        
+        mov ax, targetsg
+        mov es, ax      ; 一开始用的是 ss, 引起了一个错误。
+                        ; 先 push，后改变栈的段地址拿来用, 然后再 pop, 数据就会不对
+                        ; 在有子程序调用的时候，尽量不要使用 ss, 否则程序就 ret 不回去了
+                        
+        ; 将数据取出，赋值给 ax, dx
+        mov ax, es:[0]
+        mov dx, es:[2]
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, divsg
+        mov ds, bx
+        
+
+        mov si, 0
+        mov bx, 10
+
+        
+
+    assign_merchat: 
+        call divdw
+        ; 保存余数
+        add cl, 30h         ; 转化为字符串数字，例如 数字 1 转化为字符串 "1"
+        mov es:[si], cl     ; 因为这里除的数字是 10， 所以余数一定小于 10    
+        inc si
+        mov cx, 0
+        add cx, dx          
+        add cx, ax          ; 将高位的商和低位的商相加
+                            ; 如果等于 0,则结束。只要一个不等于 0, 则继续
+                            ; add dx, ax;mov cx, dx; 不能这样写，这样会改变 dx 的值 
+                            ; 这里还需要思考一个问题，(ax) + (bx) 会不会超过 FFFF ？
+                            ; 答案是不会，最临界的数字是 655359(000fffff),相加为 FFFF
+
+        jcxz tdoc_over
+        jmp short assign_merchat       
+                            ; 这里不可以用 loop. 当执行到最后一次， cx == 1 的时候，
+                            ; cx--, 不再执行 loop, 往下执行 divdw, 所有结果正确。
+                            ; 但是执行 ret 之后， IP == 0, 又将从头执行，死循环了~
+
+    divdw:
+        mov ds:[0], ax
+
+        mov ax, dx
+        mov dx, 0
+        div bx             ; div 的计算结果不好记，商默认保存在 ax 中，余数默认保存在 dx 中
+        mov ds:[2], ax     ; 这里将商保存在数据段中，在下面的代码中，将结果的高16位赋值给 dx 
+
+        mov ax, ds:[0]
+        div bx             ; 这里比较难理解的是，连续进行了两次 div 运算，稍微有点绕
+        mov cx, dx         ; cx 保存最终的余数
+        mov dx, ds:[2]     ; 将结果的高16位赋值给 dx
+                           ; ax 默认保存了第二次计算（也就是低16位）的商
+        ret
+
+    tdoc_over: 
+        pop bx
+        pop ax
+        pop dx
+        pop cx
+        pop si
+        pop ds
+        pop es
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    sort_dtoc:
+        push ds
+        push es
+        push bx
+        push si
+        push cx
+        push ax
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, sortsg
+        mov ds, bx
+
+        mov si, 15
+        mov bx, 0
+    
+    ; 如果是 67000，在显示的数据段中就是 00076000 0000000，正向取值就取不出来
+    ; 16 位的汇编中，最大的数字是 4294967295，没有超过 10 位。所以 showsg 数据段用 16 位即可。
+    ; 数字的首位不可能是 0，所以采取的方案是逆向来数数. 遇到不是零的数字，则开始赋值。
+    ; 然后 index == 0 的时候，赋值可以结束
+    no_zero:
+        mov ch, 0
+        mov cl, es:[si]
+        jcxz sort_continue
+
+    assign_value:
+        mov cx, si
+        mov al, es:[si]
+        mov ds:[bx], al
+        dec si
+        inc bx
+        loop assign_value
+
+        mov al, es:[si]            ; 遇到 0 的时候，需要最后一次的赋值
+        mov ds:[bx], al
+        jcxz sort_over
+
+    sort_continue:
+        dec si                    
+        jmp short no_zero
+
+    sort_over:
+        pop ax
+        pop cx
+        pop si
+        pop bx
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字排序为正序--end 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    show_str:
+        push ds
+        push es
+        push ax
+        push bx
+        push si
+        push cx
+        push dx
+
+        mov dh, 8         ; 在屏幕的第 8 行
+        mov dl, 3         ; 在屏幕的第 3 列
+        mov cl, 2         ; 绿色
+        
+        mov ax, sortsg
+        mov ds, ax
+        mov si, 0
+        mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
+                           ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+        mov es, ax
+        mov al, dh
+        add al, 3          ; 直接 g 命令执行之后，屏幕会往下滑动三行
+        mov ah, 160        ; 一行 80 个字符，每个字符需要两个字节来保存
+        mul ah             ; 如果是 8 位乘法，默认的一个放在 AL 中
+                           ; 结果默认放在 AX 中
+        mov bx, ax         ; 将第 8 行的计算结果赋值给 bx
+        mov al, dl         ; 开始计算第三行的值
+        mov ah, 2
+        mul ah
+        add bx, ax         ; 8 行 3 列计算完成
+        mov al, cl         ; 保存颜色的值
+        
+    screen_data: 
+        mov ch, 0
+        mov cl, ds:[si]    ; 这里和 jcxz 配合，遇到 0 则结束
+        mov es:[bx], cl
+        mov es:[bx+1], al
+        jcxz show_over
+        inc si
+        add bx, 2
+        jmp short screen_data
+
+    show_over:
+        pop dx
+        pop cx
+        pop si
+        pop bx
+        pop ax
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    codesg ends   
+ end start
+```
+
+以上的这段程序，也是完成了课程设计 1 中双个字型数据的字符展示
+
+
+
+上面的一段程序，有一个误解：; 如果是 67000，在显示的数据段中就是 00076000 0000000，正向取值就取不出来。
+
+哈啊哈，这是没有正确的区分数字 0 和字符 '0'，数字 0 在内存单元中是 0， 字符 '0' 在内存单元中是 30h.
+
+以上程序，将字符排列为正序，就不要这么复杂了，更新如下：
+
+```assembly
+assume cs:codesg
+  
+    ; 这个数据段，用来保存转化为字符串的数字
+    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（66621）
+    showsg segment
+        db 16 dup (0)
+    showsg ends
+
+    ; 这个数据段用来保存 32 位除法时，32 位溢出除法时的数据
+    divsg segment
+        db 40 dup (0)
+    divsg ends
+
+    ; 例如有数字 12666，将倒序（66621）转为正序保存（12666）
+    sortsg segment
+        db 40 dup (0)
+    sortsg ends
+
+    targetsg segment
+        dd 66660000       ;
+    targetsg ends
+
+    codesg segment
+    start:
+
+        call dtoc         ; 将 16 进制的数字转化为字符串的数字
+        call sort_dtoc    ; 将特定数据段的字符串数字排列为正序
+        call show_str     ; 在 DOS 屏幕上规定位置展示
+
+        mov ax,4c00h
+        int 21h
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    dtoc: 
+        push es
+        push ds
+        push si
+        push cx           
+        push dx
+        push ax
+        push bx
+        
+        mov ax, targetsg
+        mov es, ax      ; 一开始用的是 ss, 引起了一个错误。
+                        ; 先 push，后改变栈的段地址拿来用, 然后再 pop, 数据就会不对
+                        ; 在有子程序调用的时候，尽量不要使用 ss, 否则程序就 ret 不回去了
+                        
+        ; 将数据取出，赋值给 ax, dx
+        mov ax, es:[0]
+        mov dx, es:[2]
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, divsg
+        mov ds, bx
+        
+
+        mov si, 0
+        mov bx, 10
+
+        
+
+    assign_merchat: 
+        call divdw
+        ; 保存余数
+        add cl, 30h         ; 转化为字符串数字，例如 数字 1 转化为字符串 "1"
+        mov es:[si], cl     ; 因为这里除的数字是 10， 所以余数一定小于 10    
+        inc si
+        mov cx, 0
+        add cx, dx          
+        add cx, ax          ; 将高位的商和低位的商相加
+                            ; 如果等于 0,则结束。只要一个不等于 0, 则继续
+                            ; add dx, ax;mov cx, dx; 不能这样写，这样会改变 dx 的值 
+                            ; 这里还需要思考一个问题，(ax) + (bx) 会不会超过 FFFF ？
+                            ; 答案是不会，最临界的数字是 655359(000fffff),相加为 FFFF
+
+        jcxz tdoc_over
+        jmp short assign_merchat       
+                            ; 这里不可以用 loop. 当执行到最后一次， cx == 1 的时候，
+                            ; cx--, 不再执行 loop, 往下执行 divdw, 所有结果正确。
+                            ; 但是执行 ret 之后， IP == 0, 又将从头执行，死循环了~
+
+    divdw:
+        mov ds:[0], ax
+
+        mov ax, dx
+        mov dx, 0
+        div bx             ; div 的计算结果不好记，商默认保存在 ax 中，余数默认保存在 dx 中
+        mov ds:[2], ax     ; 这里将商保存在数据段中，在下面的代码中，将结果的高16位赋值给 dx 
+
+        mov ax, ds:[0]
+        div bx             ; 这里比较难理解的是，连续进行了两次 div 运算，稍微有点绕
+        mov cx, dx         ; cx 保存最终的余数
+        mov dx, ds:[2]     ; 将结果的高16位赋值给 dx
+                           ; ax 默认保存了第二次计算（也就是低16位）的商
+        ret
+
+    tdoc_over: 
+        pop bx
+        pop ax
+        pop dx
+        pop cx
+        pop si
+        pop ds
+        pop es
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    sort_dtoc:
+        push ds
+        push es
+        push bx
+        push si
+        push cx
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, sortsg
+        mov ds, bx
+
+        mov si, 0
+        mov bx, 0
+    
+    zero_index:
+        mov ch, 0
+        mov cl, es:[si]
+        jcxz sort_start
+        inc si
+        jmp short zero_index
+
+    sort_start:
+        mov cx, si
+        jcxz sort_over
+        dec si                 ; 减去 0 的那个数字，然后开始倒着赋值
+                               ; 不用栈的原因是，栈是 2 个字节为基本单位
+        mov cl, es:[si]
+        mov ds:[bx], cl
+        inc bx
+        jmp short sort_start
+
+    sort_over:
+        pop cx
+        pop si
+        pop bx
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--end 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    show_str:
+        push ds
+        push es
+        push ax
+        push bx
+        push si
+        push cx
+        push dx
+
+        mov dh, 8         ; 在屏幕的第 8 行
+        mov dl, 3         ; 在屏幕的第 3 列
+        mov cl, 2         ; 绿色
+        
+        mov ax, sortsg
+        mov ds, ax
+        mov si, 0
+        mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
+                           ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+        mov es, ax
+        mov al, dh
+        add al, 3          ; 直接 g 命令执行之后，屏幕会往下滑动三行
+        mov ah, 160        ; 一行 80 个字符，每个字符需要两个字节来保存
+        mul ah             ; 如果是 8 位乘法，默认的一个放在 AL 中
+                           ; 结果默认放在 AX 中
+        mov bx, ax         ; 将第 8 行的计算结果赋值给 bx
+        mov al, dl         ; 开始计算第三行的值
+        mov ah, 2
+        mul ah
+        add bx, ax         ; 8 行 3 列计算完成
+        mov al, cl         ; 保存颜色的值
+        
+    screen_data: 
+        mov ch, 0
+        mov cl, ds:[si]    ; 这里和 jcxz 配合，遇到 0 则结束
+        mov es:[bx], cl
+        mov es:[bx+1], al
+        jcxz show_over
+        inc si
+        add bx, 2
+        jmp short screen_data
+
+    show_over:
+        pop dx
+        pop cx
+        pop si
+        pop bx
+        pop ax
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    在显存中展示--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
     codesg ends   
  end start
 ```
 
 
 
+```assembly
+assume cs:codesg
+    
+    ; 这个数据段，用来保存转化为字符串的数字
+    ; 例如有数字 12666，转化为字符串的数字顺序为倒序（66621）
+    showsg segment
+        db 16 dup (0)
+    showsg ends
+
+    ; 这个数据段用来保存 32 位除法时，32 位溢出除法时的数据
+    divsg segment
+        db 16 dup (0)
+    divsg ends
+
+    ; 例如有数字 12666，将倒序（66621）转为正序保存（12666）
+    sortsg segment
+        db 16 dup (0)
+    sortsg ends
+
+    datasg segment
+        ; 年份
+        db '1975','1976','1977','1978','1979','1980','1981','1982','1983'
+        db '1984','1985','1986','1987','1988','1989','1990','1991','1992'
+        db '1993','1994','1995'
+
+        ; 总收入
+        dd 16,22,382,1356,2390,8000,16000,24486,50065,97479,140417,197514
+        dd 345980,590827,803530,1183000,1843000,2759000,3753000,4649000,5937000
+
+        ; 雇员数
+        dw 3,7,9,13,28,38,130,220,476,778,1001,1442,2258,2793,4037,5635,8226
+        dw 11542,14430,15257,17800
+
+    datasg ends
+
+    tablesg segment
+        ; 人均收入，需要计算出来的数据
+        db 21 dup ('year summ dp ?? ')
+    tablesg ends
+
+    tablefinalsg segment
+        db 1680 dup (0)
+    tablefinalsg ends
 
 
-## 第十一章 标志寄存器
+    codesg segment
+    start:  
+
+        call avg_count          ; 求出平均数
+        call trans_show         ; 转化为可以展示的字符串，并按照格式放入特定的数据段
+        call show_screen        ; 展示(写入显存的地址空间)
+
+    mov ax,4c00h
+    int 21h
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 求平均数--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    avg_count:
+
+        push ds
+        push es
+        push ax
+        push bx
+        push bp
+        push si
+        push di
+        push cx
+
+
+        mov ax,datasg
+        mov ds,ax
+        mov ax,tablesg
+        mov es,ax
+        
+        mov bx,0
+        mov bp,0
+        mov si,0
+        mov di,0
+        
+        mov cx,21
+    s0:
+        ; 赋值年份
+        mov ax,[bx]
+        mov es:[bp],ax    ; 如果没有使用默认的寄存器，会多一个指令，占用一个字节的。至于原因，暂且不知
+        add bx,2h
+        add bp,2h
+        mov ax,[bx]
+        mov es:[bp],ax
+
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        ; 赋值收益总数
+        mov ax,ds:54h[si]
+        mov es:[bp],ax
+        push ax
+        add si,2h
+        add bp,2h
+        mov ax,ds:54h[si]
+        mov es:[bp],ax
+        mov dx,ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+        
+        ; 雇员数
+        mov ax,ds:0A8h[di]
+        mov es:[bp],ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        ; 赋值平均数
+        pop ax
+        div word ptr ds:0A8h[di]
+        mov es:[bp],ax
+
+        add bp,2h    ;内存地址向前移动两位
+        inc bp    ;有一个空格，内存地址向前移动一位
+
+        add bx,2h
+        add di,2h
+        add si,2h
+
+    loop s0
+
+    pop cx
+    pop di
+    pop si
+    pop bp
+    pop bx
+    pop ax
+    pop es
+    pop ds
+    ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 求平均数--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    dtoc: 
+        push es
+        push ds
+        push si
+        push cx           
+        push dx
+        push ax
+        push bx
+        push bp
+        
+        
+        ; 栈传递参数
+        mov bp, sp
+        mov ax, ss:[bp+18]
+        mov dx, ss:[bp+20]
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, divsg
+        mov ds, bx
+        
+
+        mov si, 0
+        mov bx, 10
+
+        
+
+    assign_merchat: 
+        call divdw
+        ; 保存余数
+        add cl, 30h         ; 转化为字符串数字，例如 数字 1 转化为字符串 "1"
+        mov es:[si], cl     ; 因为这里除的数字是 10， 所以余数一定小于 10    
+        inc si
+        mov cx, 0
+        add cx, dx          
+        add cx, ax          ; 将高位的商和低位的商相加
+                            ; 如果等于 0,则结束。只要一个不等于 0, 则继续
+                            ; add dx, ax;mov cx, dx; 不能这样写，这样会改变 dx 的值 
+                            ; 这里还需要思考一个问题，(ax) + (bx) 会不会超过 FFFF ？
+                            ; 答案是不会，最临界的数字是 655359(000fffff),相加为 FFFF
+
+        jcxz tdoc_over
+        jmp short assign_merchat       
+                            ; 这里不可以用 loop. 当执行到最后一次， cx == 1 的时候，
+                            ; cx--, 不再执行 loop, 往下执行 divdw, 所有结果正确。
+                            ; 但是执行 ret 之后， IP == 0, 又将从头执行，死循环了~
+
+    divdw:
+        mov ds:[0], ax
+
+        mov ax, dx
+        mov dx, 0
+        div bx             ; div 的计算结果不好记，商默认保存在 ax 中，余数默认保存在 dx 中
+        mov ds:[2], ax     ; 这里将商保存在数据段中，在下面的代码中，将结果的高16位赋值给 dx 
+
+        mov ax, ds:[0]
+        div bx             ; 这里比较难理解的是，连续进行了两次 div 运算，稍微有点绕
+        mov cx, dx         ; cx 保存最终的余数
+        mov dx, ds:[2]     ; 将结果的高16位赋值给 dx
+                           ; ax 默认保存了第二次计算（也就是低16位）的商
+        ret
+
+    tdoc_over: 
+        pop bp
+        pop bx
+        pop ax
+        pop dx
+        pop cx
+        pop si
+        pop ds
+        pop es
+        ret 4
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将 16 进制的数字转化为字符串的数字--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    sort_dtoc:
+        push ds
+        push es
+        push bx
+        push si
+        push cx
+
+        mov bx, showsg
+        mov es, bx
+        mov bx, sortsg
+        mov ds, bx
+
+        mov si, 0
+        mov bx, 0
+    
+    zero_index:
+        mov ch, 0
+        mov cl, es:[si]
+        jcxz sort_start
+        inc si
+        jmp short zero_index
+
+    sort_start:
+        mov cx, si
+        jcxz sort_over
+        dec si                 ; 减去 0 的那个数字，然后开始倒着赋值
+                               ; 不用栈的原因是，栈是 2 个字节为基本单位
+        mov cl, es:[si]
+        mov ds:[bx], cl
+        inc bx
+        jmp short sort_start
+
+    sort_over:
+        pop cx
+        pop si
+        pop bx
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将字符串的数字排序为正序--end 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    清空数据段中的数据，防止干扰下一个循环--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    clear_data:
+        push ds
+        push ax
+        push bx
+        push cx
+
+        mov bx, 0
+        mov ax, showsg
+        mov ds, ax
+        mov cx, 8
+    clear_showsg:
+        mov word ptr ds:[bx], 0
+        inc bx
+        loop clear_showsg
+
+        mov bx, 0
+        mov ax, divsg
+        mov ds, ax
+        mov cx, 8
+    clear_divsg:
+        mov word ptr ds:[bx], 0
+        inc bx
+        loop clear_divsg
+
+        mov bx, 0
+        mov ax, sortsg
+        mov ds, ax
+        mov cx, 8
+    clear_sortsg:
+        mov word ptr ds:[bx], 0
+        inc bx
+        loop clear_sortsg
+
+        pop cx
+        pop bx
+        pop ax
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    清空数据段中的数据，防止干扰下一个循环--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将排列好的字符串数字写入 tablefinal--start 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    in_tablefinal:
+        ; 子程序用到的变量，最好都是原值返回，不然会影响调用的程序
+        push ds                     
+        push es
+        push ax
+        push cx
+        push bx                      
+        push bp
+        push si
+        ; 用栈传递参数，有一个很大的弊端就是需要随着改变取值的 index，而这也很容易忘记
+
+        mov si, 0
+        mov bp, sp
+        mov bx, ss:[bp+18]           ; 传递参数 bx, 行数
+        mov di, ss:[bp+16]           ; 传递参数 di, 列数
+        mov al, 80                   ; 行数 * 80
+        mul bl                       ; 行数，肯定没有超过 8 位
+        mov bx, ax                   ; 乘积的和默认放在 ax, 中，赋值给 bx
+        add bx, di                   ; 行数+列数
+        mov ax, sortsg
+        mov ds, ax
+        mov ax, tablefinalsg
+        mov es, ax
+
+    assign_value:
+        mov al, ds:[si]
+        mov ch, 0
+        mov cl, al                  ; 遇到数字 0 则结束
+        jcxz ok
+        mov es:[bx+si], al          ; 以字节为单位的移动，不能以字型数据为单位而移动
+        inc si
+        jmp short assign_value
+
+    ok: 
+        pop si
+        pop bp
+        pop bx
+        pop cx
+        pop ax
+        pop es
+        pop ds
+
+        ret 4
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;;    将排列好的字符串数字写入 tablefinal--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 转化为可显示的字符串--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    trans_show:
+        push ds
+        push es
+        push ax
+        push bx
+        push si
+        push di
+        push bp
+        push dx
+
+        mov ax, tablesg;
+        mov ds, ax
+        mov ax, tablefinalsg
+        mov es, ax
+        mov bx, 0
+        mov si, 0
+        mov di, 0
+        mov cx, 21
+        mov dx, 0
+        mov bp, 0
+    
+    loop_tablefinal:
+        ; year 赋值
+
+        mov ax, ds:[bp]          ; 
+        mov es:[si+10], ax       ; 10~13 列用来展示年份
+        mov ax, ds:[bp+2]
+        mov es:[si+12], ax
+
+        ; 总收入
+        mov ax, ds:[bp+5]        ; 这里是低位
+        mov dx, ds:[bp+7]        ; 这里是高位
+        push dx                  ; 传递参数 dx
+        push ax                  ; 传递参数 ax
+        call dtoc
+        call sort_dtoc
+        push bx                  ; 传递参数 bx, bx 表示行
+        mov di, 20               ; 自定义 20~29 为总收入的区段
+        push di                  ; 传递参数 di, di 表示列
+        call in_tablefinal       ; 将排序好的字符串写入 tablefinalsg
+        call clear_data          ; 清除垃圾数据
+
+        ; 雇员数
+        mov ax, ds:[bp+10]       ; 序号为 10 的列是雇员数
+        mov dx, 0
+        push dx
+        push ax
+        call dtoc
+        call sort_dtoc
+        push bx                  ; 传递参数 bx, bx 表示行
+        mov di, 40               ; 自定义 40~50 为总收入的区段
+        push di                  ; 传递参数 di, di 表示列
+        call in_tablefinal       ; 将排序好的字符串写入 tablefinalsg
+        call clear_data          ; 清除垃圾数据
+
+        ; 收入平均数
+        mov ax, ds:[bp+13]       ; 序号为 13 的列是平均数开始
+        mov dx, 0
+        push dx
+        push ax
+        call dtoc
+        call sort_dtoc
+        push bx                  ; 传递参数 bx, bx 表示行
+        mov di, 60               ; 自定义 60~70 为总收入的区段
+        push di                  ; 传递参数 di, di 表示列
+        call in_tablefinal       ; 将排序好的字符串写入 tablefinalsg
+        call clear_data          ; 清除垃圾数据
+
+        add bx, 1                ; tablesg 行的移动变化
+        add bp, 16               ; tablesg 内存单元的移动变化
+        add si, 80               ; tablefinalsg 内存单元的移动变化
+        loop loop_tablefinal
+
+        pop dx
+        pop bp
+        pop di
+        pop si
+        pop bx
+        pop ax
+        pop es
+        pop ds
+
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 转化为可显示的字符串--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+     
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 在屏幕上显示--start
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+    show_screen:
+        push ds
+        push es
+        push ax
+        push bx
+        push si
+        push cx
+
+        mov cl, 2         ; 绿色
+        mov ax, tablefinalsg
+        mov ds, ax
+        mov ax, 0B800h     ; B8000~BFFFF 这些空间表示 DOS 的显存
+                           ; 0B800h 前面为啥需要加上 0，这是 DOS 编译器的要求，不能以字符串开头
+        mov es, ax
+        mov al, 6          ; 执行 g 命令后屏幕往下滑动了三行，为了更加漂亮，选择 6 行
+        mov ah, 160        ; 一行 80 个字符，每个字符需要两个字节来保存
+        mul ah             ; 如果是 8 位乘法，默认的一个放在 AL 中
+                           ; 结果默认放在 AX 中
+        mov bx, ax         ; 将第 8 行的计算结果赋值给 bx
+        mov al, cl         ; 保存颜色的值
+        mov si, 0
+        mov cx, 1680
+    screen_in:
+        mov dl, ds:[si]
+        mov es:[bx], dl        ; 显存中保存值
+        mov es:[bx+1], al      ; 显存中保存颜色
+        inc si
+        add bx, 2
+        loop screen_in
+
+        pop cx
+        pop si
+        pop bx
+        pop ax
+        pop es
+        pop ds
+        ret
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; 在屏幕上显示--end
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    codesg ends   
+ end start
+
+```
+
+这段程序写了三天，都没怎么休息。当效果展示出来的时候，真是有点激动~
+
+<img src=".\img\10.jpg" alt="10"  />
+
+
+
+这段程序呢，是汇编语言这本书中最难的两大程序之一。将数字转化为对应的字符串，这其中又涉及到 32 位
+
+数据的除法溢出；计算出来的商是从个位到高位，需要一次首尾数据的交换；如果要展示在 DOS 屏幕上，就
+
+需要将数据放入显存的地址中，还需要按照 table 的格式。我的这一步设计，分为了两步。首先将所有的数据
+
+转化为对应的字符串，并以 table 的格式放入一段数据段中；然后直接读出数据，赋值显存地址，这一步就超
+
+简单。这样做的好处是方便调试一点，试想，本来就一团糟了，还要考虑调试时屏幕还在移动的情况下，为啥
+
+屏幕不展示，是数据赋值不成功，还是屏幕的移动等。因为功能较多，基本采取了栈来传递参数，子程序会恢复
+
+寄存器的值，这里都需要小心一点，不然就有的 debug 了~
+
+
+
+我在最近的几段程序中，写的注释超级多，话痨~~。因为今天写的程序，明天来看，人是蒙的，而回忆是痛苦的。所以说，终于体会到了高级语言的好处，高级语言更为接近人的思维吧。
+
+
+
+其实吧，这段程序用处不大。因为 DOS 16 位汇编，已经基本没啥地方在用。很多的复杂，是因为段地址+偏移地址，嗯等等限制。在后面 32 位，64 位的汇编中，已经没有这么设计。冒着极大的压力写完，更多是因为自己的性格缺陷。其实我的内心中，没写之前就知道，这一段可以不写，重要的是掌握主要的脉络，不能太在乎细节。但是这个度，是很难控制的，特别是在没有老师，没有朋友的情况下。有些细节，牵连甚广，比如说，你不懂二进制的逻辑运算，你就看不懂 PHP 中对错误级别的设置，你就看不懂标志位的设置应用。或许有人说，二进制的逻辑运算，很简单呀，不看汇编也是可以看懂呀。但是，如果你单独拿一段二进制的逻辑运算的独立知识点，在那学习一段，可以说，一般情况下，你是似懂非懂，模棱两可，这种感觉，应该很糟糕吧。取法乎上，仅得其中。
+
+
+
+我应该不会再写这段程序第二次了，但是希望我不要忘记。那一段一段的独立的子程序比较重要，有空就来看看。
+
+
+
