@@ -3609,6 +3609,12 @@ assume cs:codesg
 
     tablesg segment
         ; 人均收入，需要计算出来的数据
+        ; 这里的平均数都没有除法溢出的问题，所以求平均数就从简处理了。
+        ; 如果调用除法溢出的方法，也可以。其实应该考虑除法溢出的问题。
+        ; 此时 tablesg 就应该写成： db 21 dup ('year summ dp ???? ')
+        ; 虽然不再是 16 位了，很明显，处理这个问题不大。
+        ; 数字转字符串的时候，对除法溢出的运用已经比较极致了。
+        ; 这里先这样~
         db 21 dup ('year summ dp ?? ')
     tablesg ends
 
@@ -4099,11 +4105,463 @@ assume cs:codesg
 
 这段程序呢，是汇编语言这本书中最难的两大程序之一。将数字转化为对应的字符串，这其中又涉及到 32 位数据的除法溢出；计算出来的商是从个位到高位，需要一次首尾数据的交换；如果要展示在 DOS 屏幕上，就需要将数据放入显存的地址中，还需要按照 table 的格式。我的这一步设计，分为了两步。首先将所有的数据转化为对应的字符串，并以 table 的格式放入一段数据段中；然后直接读出数据，赋值显存地址，这一步就超简单。这样做的好处是方便调试一点，试想，本来就一团糟了，还要考虑调试时屏幕还在移动的情况下，为啥屏幕不展示，是数据赋值不成功，还是屏幕的移动等。因为功能较多，基本采取了栈来传递参数，子程序会恢复寄存器的值，这里都需要小心一点，不然就有的 debug 了~
 
-我在最近的几段程序中，写的注释超级多，话痨~~。因为今天写的程序，明天来看，人是蒙的，而回忆是痛苦的。所以说，终于体会到了高级语言的好处，高级语言更为接近人的思维吧。
+我在最近的几段程序中，写的注释超级多，小话痨~~。因为今天写的程序，明天来看，人是蒙的，低级语言，泪流满面。所以说，终于体会到了高级语言的好处，高级语言更为接近人的思维吧。
 
 其实吧，这段程序用处不大。因为 DOS 16 位汇编，已经基本没啥地方在用。很多的复杂，是因为段地址+偏移地址，嗯等等限制。在后面 32 位，64 位的汇编中，已经没有这么设计。冒着极大的压力写完，更多是因为自己的性格缺陷。其实我的内心中，没写之前就知道，这一段可以不写，重要的是掌握主要的脉络，不能太在乎细节。但是这个度，是很难控制的，特别是在没有老师，没有朋友的情况下。有些细节，牵连甚广，比如说，你不懂二进制的逻辑运算，你就看不懂 PHP 中对错误级别的设置，你就看不懂标志位的设置应用。或许有人说，二进制的逻辑运算，很简单呀，不看汇编也是可以看懂呀。但是，如果你单独拿一段二进制的逻辑运算的独立知识点，在那学习一段，可以说，一般情况下，你是似懂非懂，模棱两可，这种感觉，应该很糟糕吧。取法乎上，仅得其中。
 
 我应该不会再写这段程序第二次了，但是希望我不要忘记。那一段一段的独立的子程序比较重要，有空就来看看。
+
+
+
+
+
+## 我又来汇编了
+
+有的时候，我就一直没搞懂，为啥我要揪着汇编不放，我上个阶段还在苦苦学习前端。说实话，对于一个 Phper，一般情况下，底层的戏份不多。可是我好像不是一般情况。
+
+
+
+
+
+
+
+
+## 第十一章 标志寄存器
+
+标志寄存器的原理用法，其实我用过，不就是之前提到过的 PHP 标志位应用么。
+
+### 11.1 ZF 标志
+
+顾名思义：Zero Flag
+
+1. NZ（Not Zero）
+2. ZR （Zero）
+
+
+
+
+
+### 11.2 PF 标志
+
+顾名思义：Parity Flag
+
+Parity：奇偶性
+
+Even：偶数
+
+Odd：奇数
+
+
+
+### 11.3 SF标志
+
+sign flag
+
+NG: negative（负数）
+
+PL：plus（正数，数学中）
+
+
+
+### 11.4 CF 标志
+
+Carry Flag
+
+CY: carry yes 1
+
+NC: no carry yes 0
+
+
+
+### 11.5 OF 标志
+
+overflow
+
+OV: 1
+
+NV: 0
+
+
+
+### 11.6 adc 指令
+
+### 11.7 sbb 指令
+
+### 11.8 cmp 指令
+
+### 11.9 检测比较结果的条件转移指令
+
+统计如下 data 段中的等于 8 的个数
+
+
+
+方法一：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 8, 11, 8, 1, 8, 5, 63, 38
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov bx, 0
+    mov ax, 0
+
+    mov cx, 8
+ok:
+    cmp byte ptr [bx], 8
+    je s
+    inc bx
+    loop ok
+
+    mov ax, 4c00h
+    int 21h
+
+s: 
+    inc bx
+    inc ax
+    dec cx
+    jmp ok
+
+code ends
+end start
+```
+
+
+
+ 方法二：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 8, 11, 8, 1, 8, 5, 63, 38
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov bx, 0
+    mov ax, 0
+
+    mov cx, 8
+ok:
+    cmp byte ptr [bx], 8
+    je s1
+    jmp s2
+
+s1: 
+    inc ax
+s2: 
+    inc bx
+    loop ok
+
+    
+    mov ax, 4c00h
+    int 21h
+
+
+
+code ends
+end start
+```
+
+
+
+方法三：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 8, 11, 8, 1, 8, 5, 63, 38
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov bx, 0
+    mov ax, 0
+
+    mov cx, 8
+ok:
+    cmp byte ptr [bx], 8
+    jne s2
+    inc ax
+s2: 
+    inc bx
+    loop ok
+
+
+    mov ax, 4c00h
+    int 21h
+
+
+
+code ends
+end start
+```
+
+
+
+可以看出一次比一次简单~
+
+
+
+### 11.10 DF 标志和串传送指令
+
+编程：将 data 段中的第一个字符串复制到它后面的空间中
+
+```assembly
+datasg segment
+    db 'Welcome to masm!'
+    db 16 dup (0)
+datasg ends
+
+```
+
+代码如下：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 'Welcome to masm!'
+    db 16 dup (0)
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov es, ax
+    mov si, 0
+    mov di, 16
+    cld
+    mov cx, 16
+s:  
+    movsb
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end start
+```
+
+
+
+优化代码如下：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 'Welcome to masm!'
+    db 16 dup (0)
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov es, ax
+    mov si, 0
+    mov di, 16
+    cld
+    mov cx, 16
+
+    rep movsb
+
+    mov ax, 4c00h
+    int 21h
+
+
+
+code ends
+end start
+```
+
+
+
+案例二：将 F000H 段中的最后 16 个字符复制到 data 段中
+
+代码如下：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 16 dup (0)
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, 0f000h
+    mov ds, ax
+    mov ax, datasg
+    mov es, ax
+
+    mov si, 0ffffh
+    mov di, 15
+    std
+    mov cx, 16
+    rep movsb
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end start
+```
+
+
+
+
+
+### 11.11 pushf 和 popf
+
+
+
+检测点 11.4
+
+下面的程序执行后：(ax) = ?
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 16 dup (0)
+datasg ends
+
+code segment
+			
+start:  
+    
+    mov ax, 0
+    push ax
+    popf
+    mov ax, 0fff0h
+    add ax, 0010h    ; 执行到这一步，标志寄存器的值应该就是 0045h
+    				 ; 可是到了下面 pop ax 的时候却发现 (ax) == 0047h
+    				 ; workWork 视频中的讲解更为奇怪是 (ax) == 3047h
+    				 ; 虽然不影响最终的结果，但是，疑问很大~~
+    pushf
+    pop ax
+    and al, 11000101B
+    and ah, 00001000B
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end start
+```
+
+
+
+最终的结果就是: 0045h
+
+
+
+
+
+### 实验 11 编写子程序
+
+功能：将以 0 结尾的字符串中的小写字母转变成大写字母
+
+```assembly
+datasg segment
+    db "0: bininner's All-purpose Symbolic Instruction Code.", 0
+datasg ends
+```
+
+
+
+代码如下：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db "0: bininner's All-purpose Symbolic Instruction Code.", 0
+datasg ends
+
+code segment
+			
+begin:  
+    
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+
+    call letterc
+    mov ax, 4c00h
+    int 21h
+
+letterc:
+    push cx
+    mov ch, 0
+
+init_cx:
+    mov cl, ds:[si]
+    jcxz letterc_over
+
+    ; 判断：61h ~ 7ah 是小写字母的范围
+    cmp cl, 61h
+    jb continue_cmp
+    cmp cl, 7ah
+    ja continue_cmp
+
+    and cl, 11011111b    ; 转化为大写
+    mov ds:[si], cl     ; 赋值给当前的内存数据
+
+continue_cmp:
+    inc si
+    jmp init_cx
+
+letterc_over:
+    pop cx
+    ret
+
+    
+code ends
+end begin
+```
+
+
+
+
+
+### 小结
+
+cmp 命令来做比较从而影响标志寄存器的数值，je, jne, jb, jnb, ja, jna 等命令根据标志寄存器的数值直接判断来写程序，非常方便。如果是一个一个去判断标志寄存器的位，是大于还是小于等等，那简直要疯了~~。 je, jne, jb, jnb, ja, jna 等命令应该就是包含有判断标志寄存器位的值的指令的封装。
+
+
+
+
 
 
 
