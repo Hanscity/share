@@ -4561,6 +4561,27 @@ cmp 命令来做比较从而影响标志寄存器的数值，je, jne, jb, jnb, j
 
 
 
+一直以为，这一章节没啥东西，但是命令却是最多的。标志寄存器的位的值，再加上判断，也是最难记的，根本就不想记，似乎也不用记。
+
+
+
+命令如下：
+
+```assembly
+adc
+sbb
+cmp
+je
+jne
+jb
+jnb
+ja
+jna
+movsb
+movsw
+rep
+```
+
 
 
 
