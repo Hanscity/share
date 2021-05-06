@@ -14,12 +14,12 @@ div
 
 push    ; push，pop 的操作单位是 字，且可以直接操作内存，普通寄存器，段寄存器
 pop
-call 
-
-ret
 loop 
 jcxz
 jmp
+call
+ret
+retf
 
 adc
 sbb
@@ -48,12 +48,10 @@ popf
 db    ; data byte, 8 字节
 dw    ; data word, 字型数据，16 字节
 dd    ; double data word, 双字型数据， 32 字节
-nop    ; nop 的机器码占一个字节。（P176
+nop    ; nop 的机器码占一个字节。（P176）
 ```
 
 
-
-## 操作
 
 
 

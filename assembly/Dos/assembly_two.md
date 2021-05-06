@@ -4388,7 +4388,6 @@ start:
     mov di, 16
     cld
     mov cx, 16
-
     rep movsb
 
     mov ax, 4c00h
@@ -4580,6 +4579,9 @@ jna
 movsb
 movsw
 rep
+pushf
+popf
+
 ```
 
 
