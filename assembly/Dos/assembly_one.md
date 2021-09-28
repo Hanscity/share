@@ -616,6 +616,14 @@ end    ; program end
   
   
 
+简而言之分为三个步骤：
+
+```assembly
+masm test.asm;
+link test.obj;
+debug test.exe;
+```
+
 
 
 #### 程序分析
