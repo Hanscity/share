@@ -688,6 +688,8 @@ end begin
 
 ### 13.3 对 int，iret 和栈的深入理解
 
+在屏幕中间显示 80 个 “ ! ”，编写 int 7ch 程序来代替 loop 功能：
+
 ```assembly
 assume cs:code
 
@@ -702,7 +704,7 @@ begin:
     call set_interrupt    ; 设置中断向量表
     call copy_into_interrupt    ; 将中断程序复制到中断向量表指定的位置
                                 ; 开始可以使用 int 7ch 程序
-    call show_screen    ; 屏幕显示
+    call show_screen    ; 在屏幕中间显示 80 个 “ ! ”
 
     mov ax, 4c00h
     int 21h
@@ -884,4 +886,174 @@ begin:
 code ends
 end begin
 ```
+
+
+
+
+
+### 第 14 章 端口
+
+CPU 可以直接读写以下 3 个地方的数据：
+
+1. CPU 内部的寄存器
+2. 内存单元
+3. 端口 
+
+
+
+#### 14.1 端口的读写
+
+注意，在 in 和 out 指令中，只能使用 ax 或者 al 来存放从端口中读入的数据或要发送到端口中的数据。
+
+
+
+#### 14.2 CMOS RAM 芯片
+
+监测点 14.1 
+
+1. 编程，读取 CMOS RAM 的 2 号单元的内容
+
+   ```assembly
+   mov al, 2    ; 使用 al 来保存将要发送到端口中数据
+   out 70h, al    ; 向地址端口 70h 发送 al 中的数据
+   in al, 71h    ; 向数据端口 71h 读取内容存放在 al 中
+   ```
+
+   
+
+2. 编程，向 CMOS RAM 的 2 号单元写入 0
+
+   ```assembly
+   mov al, 2    ; 使用 al 来保存将要使用的数据
+   out 70h, al    ; 向地址端口 70h 发送 al 中的数据
+   mov al, 0    ; 使用 al 来保存将要发送到端口中数据
+   out 71h, al    ; 向数据端口 71h 写入存放在 al 中的数据
+   ```
+
+
+
+#### 14.3 shl 和 shr 指令
+
+检测点 14.2：编程，用加法和移位指令计算 (ax) = (ax) * 10。
+
+```assembly
+mov bx, ax
+shl bx, 1
+mov cl, 3
+shl ax, cl
+add ax, bx
+```
+
+
+
+
+
+#### 14.4 CMOS RAM 中存储的时间信息
+
+编程，在屏幕中间显示当前的月份：
+
+```assembly
+assume cs:code
+
+code segment
+begin:  
+
+    mov al, 8
+    out 70h, al
+    in al, 71h
+
+    mov ah, al
+    mov cl, 4
+    shr ah, cl
+    and al, 00001111b
+
+    add ah, 30h
+    add al, 30h
+
+    mov bx, 0b800h
+    mov es, bx
+    mov byte ptr es:[160*12 + 40*2], ah
+    mov byte ptr es:[160*12 + 40*2 + 1], 11001010b ;颜色
+    mov byte ptr es:[160*12 + 40*2 + 2], al
+    mov byte ptr es:[160*12 + 40*2 + 3], 11001010b ;颜色
+    
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end begin
+```
+
+
+
+
+
+#### 实验 14 访问 CMOS RAM
+
+编程， 以 ”年/月/日 时:分:秒“ 的格式，显示当前的日期和时间。
+
+方法一：
+
+```assembly
+assume cs:code
+
+datasg segment
+    db '11/11/11 11:11:11$' ;预设字符串
+datasg ends
+
+portsg segment
+    db 9,8,7,4,2,0 ;端口时间地址列表
+portsg ends
+
+
+code segment
+begin:  
+    mov cx, 6
+    mov ax, datasg
+    mov ds, ax
+    mov ax, portsg
+    mov es, ax
+    mov di, 0
+    mov si, 0
+s:
+    mov al, es:[si]
+    out 70h, al
+    in al, 71h
+
+    mov ah, al
+    shr al, 1
+    shr al, 1
+    shr al, 1
+    shr al, 1    ; 连续写四个 shr al, 1 是不想占用寄存器 cx。
+    and ah, 00001111b    ; 高低位调转，例如展示'21'，在内存中 '2' 是低位。
+
+    add ah, 30h
+    add al, 30h
+    mov ds:[di], ax
+
+    add di, 3
+    inc si
+    loop s
+    
+    mov ah, 2    ; 置光标
+    mov bh, 0    ; 第 0 页
+    mov dh, 12    ; dh 中放行号
+    mov dl, 30    ; dl 中放列号
+    int 10h ;
+
+    mov dx, 0    ; ds:dx 指向字符串的首地址 datasg:0
+    mov ah, 9    ; 在光标位置显示字符串
+    int 21h    ; DOS 为程序员提供了很多的中断例程都包含在 int 21h 中断例程中
+
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end begin
+```
+
+
 
