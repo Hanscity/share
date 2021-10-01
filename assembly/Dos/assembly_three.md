@@ -889,6 +889,334 @@ end begin
 
 
 
+#### 实验 13 编写，应用中断例程
+
+一：编写并安装 int 7ch 中断例程，功能为显示一个用 0 结束的字符串，中断例程安装在 0:200 处。
+
+参数： (dh) = 行号， (dl) = 列号， (cl) = 颜色，ds:si 指向字符串首地址。
+
+```assembly
+assume cs:code
+
+datasg segment
+    db 'conversation',0
+datasg ends
+
+code segment
+			
+begin:  
+    
+    call copy_into_interrupt
+    call set_interrupt
+
+    mov dh, 10
+    mov dl, 10
+    mov cl, 2
+    mov ax, datasg
+    mov ds, ax
+    mov si, 0
+
+    int 7ch    ; 调用指定的中断
+
+    mov ax, 4c00h
+    int 21h
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码：--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+real_program: 
+    push ax
+    push bx
+    push dx
+    push di
+    push es
+    push ds
+
+    mov ax, 0b800h
+    mov es, ax
+    mov al, dh    ; dh 中保存着行号
+    add al, 3    ; g 命令之后会向上移动 3 行
+    mov ah, 160    ; 一行 80 个字符，每个字符需要两个字节来保存
+    mul ah    ; 如果是 8 位乘法，默认的一个放在 AL 中
+              ; 结果默认放在 AX 中
+    mov di, ax    ; 将第 8 行的计算结果赋值给 di
+    mov al, dl
+    mov ah, 2
+    mul ah    ; 计算列号
+    add di, ax
+
+turn_start:
+    mov al, ds:[si]
+    mov bl, 0
+    cmp al, bl
+    je turn_end
+
+    mov al, ds:[si]
+    mov es:[di], al    ; 显存中保存值
+    mov es:[di+1], cl    ; 显存中保存颜色
+    inc si
+    add di, 2
+
+    jmp turn_start
+
+turn_end:
+    pop ds
+    pop es
+    pop di
+    pop dx
+    pop bx
+    pop ax
+    iret
+
+real_program_end:
+    nop
+
+    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码：--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+copy_into_interrupt:
+    
+    push ax
+    push ds
+    push es
+    push si
+    push di
+    push cx
+    pushf
+
+    mov ax, cs
+    mov ds, ax
+    mov ax, 0
+    mov es, ax
+
+    mov si, offset real_program
+    mov di, 200h
+    mov cx, offset real_program_end - offset real_program
+    cld
+    rep movsb
+
+    popf
+    pop cx
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop ax
+
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+set_interrupt:
+    push ax
+    push es
+    pushf
+    
+    mov ax, 0
+    mov es, ax
+    mov word ptr es:[7ch*4], 200h
+    mov word ptr es:[7ch*4+2], 0
+
+    popf
+    pop es
+    pop ax
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+    
+code ends
+end begin
+```
+
+
+
+二：编写并安装 int 7ch 中断例程，功能为完成 loop 指令的功能。
+
+参数： (cx) = 循环次数， (bx) = 位移。
+
+```assembly
+assume cs:code
+
+code segment
+begin:  
+	
+    call set_interrupt    ; 设置中断向量表
+    call copy_into_interrupt    ; 将中断程序复制到中断向量表指定的位置
+                                ; 开始可以使用 int 7ch 程序
+    mov ax, 0b800h
+    mov es, ax
+    mov di, 160*12
+
+    mov bx, offset s - offset se    ; 传递位移
+    mov cx, 80    ; 传递循环次数
+    s:
+        mov byte ptr es:[di], '!'
+        add di, 2
+        int 7ch
+    se: 
+        nop
+
+    mov ax, 4c00h
+    int 21h
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码程序 7ch --start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lp: 
+    push bp
+    push ds
+
+    mov bp, sp
+    dec cx
+    jcxz lp_ret
+    add ss:[bp+4], bx    ; 4 = 2 * 2，栈操作的最小单位是字单元
+                         ; 但是栈指针的指向还是符合内存单位的标注或是查找的
+
+lp_ret:
+    pop ds
+    pop bp
+    iret
+lp_end:
+    nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码程序 7ch --end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+set_interrupt:
+    push ax
+    push es
+    pushf
+    
+    mov ax, 0
+    mov es, ax
+    mov word ptr es:[7ch*4], 200h
+    mov word ptr es:[7ch*4+2], 0
+
+    popf
+    pop es
+    pop ax
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+copy_into_interrupt:
+    
+    push ax
+    push ds
+    push es
+    push si
+    push di
+    push cx
+    pushf
+
+    mov ax, cs
+    mov ds, ax
+    mov ax, 0
+    mov es, ax
+
+    mov si, offset lp
+    mov di, 200h
+    mov cx, offset lp_end - offset lp
+    cld
+    rep movsb
+
+    popf
+    pop cx
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop ax
+
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+code ends
+end begin
+```
+
+
+
+三：下面的程序，分别在屏幕的第 2， 4， 6， 8 行显示 4 句英文诗
+
+```assembly
+assume cs:code
+
+code segment
+    s1: db 'Good,better,best','$'
+    s2: db 'Never let it rest','$'
+    s3: db 'Till good is better','$'
+    s4: db 'And better,best.','$'
+    s: dw offset s1,offset s2,offset s3,offset s4
+    row: db 2,4,6,8
+
+start:  
+    mov ax, cs
+    mov ds, ax
+    mov bx, offset s
+    mov si, offset row
+    mov cx, 4
+
+ok:
+    mov bh, 0
+    mov dh, [si]    ; 光标停留的位置
+    mov dl, 0
+    mov ah, 2
+    int 10h
+
+    mov dx, [bx]    ; dx 指向字符串首地址
+    mov ah, 9
+    int 21h
+
+    inc si
+    add bx, 2
+    loop ok
+
+    mov ax, 4c00h
+    int 21h
+	
+    
+code ends
+end start
+```
+
 
 
 ### 第 14 章 端口
