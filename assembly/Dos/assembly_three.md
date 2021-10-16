@@ -1385,3 +1385,165 @@ end begin
 
 
 
+
+
+### 第 15 章 外中断
+
+外中断和内中断大同小异，内中断的中断类型码在 CPU 内部产生，外中断的中断类型码来自 CPU 外部。
+
+
+
+### 15.4 编写 int 9 中断例程
+
+编程： 在屏幕中间依次显示 “a~z”，并可以看清
+
+```assembly
+assume cs:code
+
+code segment
+begin:  
+    mov ax, 0b800h
+    mov es, ax
+    mov ah, 'a'
+s:
+    mov es:[160*12 + 40*2], ah
+    call delay
+    inc ah
+    cmp ah, 'z'
+    jna s
+
+    mov ax, 4c00h
+    int 21h
+
+delay:
+    push ax
+    push dx
+
+    mov dx, 10h
+    mov ax, 0
+s1: 
+    sub ax, 1
+    sbb dx, 0
+    cmp ax, 0
+    jne s1
+    cmp dx, 0
+    jne s1
+
+    pop dx
+    pop ax
+    ret
+
+code ends
+end begin
+```
+
+
+
+编程： 在屏幕中间依次显示 “a~z”，并可以看清，如果是 Esc 的扫描码，改变显示的颜色后返回
+
+```assembly
+assume cs:code
+
+stack segment
+    db 128 dup (0)
+stack ends
+
+data segment
+    dw 0, 0
+data ends
+
+
+code segment
+begin:  
+    mov ax, stack
+    mov ss, ax
+    mov sp, 128
+
+    mov ax, data
+    mov ds, ax
+
+    mov ax, 0
+    mov es, ax
+
+    push es:[9*4]
+    pop ds:[0]
+    push es:[9*4+2]
+    pop ds:[2]    ; 将原来的 int 9 中断例程的入口地址保存在 ds:0, ds:2 单元中
+
+    cli    ; 如果在执行设置 int9 中断例程的段地址和偏移地址的指令之间发生了键盘中断
+           ; CPU 将转去一个一个错误的地址
+    mov word ptr es:[9*4], offset int9
+    mov es:[9*4+2], cs ; 在中断向量表中设置新的 int 9 中断例程的入口地址
+    sti    ; 恢复标志位 IF=1 
+
+    mov ax, 0b800h
+    mov es, ax
+    mov ah, 'a'
+s:
+    mov es:[160*12 + 40*2], ah
+    call delay
+    inc ah
+    cmp ah, 'z'
+    jna s
+
+    mov ax, 4c00h
+    int 21h
+
+delay:
+    push ax
+    push dx
+
+    mov dx, 10h
+    mov ax, 0
+s1: 
+    sub ax, 1
+    sbb dx, 0
+    cmp ax, 0
+    jne s1
+    cmp dx, 0
+    jne s1
+
+    pop dx
+    pop ax
+    ret
+
+;-------------------------------------------------------------
+;新的 int 9 中断例程--start
+;-------------------------------------------------------------
+
+int9: 
+    push ax
+    push bx
+    push es
+
+    in al, 60h
+
+    pushf    ; 对 int 指令进行模拟的准备
+    call dword ptr ds:[0]    ; 对 int 指令进行模拟，调用原来的 int 9 中断例程
+
+    cmp al, 1
+    jne int9ret
+
+    mov ax, 0b800h
+    mov es, ax
+    inc byte ptr es:[160*12+40*2+1]    ; 将属性值加一，改变颜色
+
+int9ret:
+    pop es
+    pop bx
+    pop ax
+    iret
+
+
+;-------------------------------------------------------------
+;新的 int 9 中断例程--end
+;-------------------------------------------------------------
+
+code ends
+end begin
+```
+
+
+
+### 15.5 安装新的 int 9 中断例程
+
