@@ -1958,5 +1958,83 @@ end begin
 
 
 
+### 16.1 描述了单元长度的标号
 
+不仅有地址，并且描述了单元长度
+
+#### 监测点 16.1
+
+```
+assume cs:code
+
+code segment
+    a dw 1, 2, 3, 4, 5, 6, 7, 8
+    b dd 0
+
+start:
+    mov si, 0
+    mov cx, 8
+s:
+    mov ax, a[si]
+    add word ptr b[0], ax
+    adc word ptr b[2], 0
+    add si, 2
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end start
+```
+
+
+
+### 16.2 在其他段中使用数据标号
+
+assume 指令：如果想在代码段中直接使用数据标号访问数据，则需要用伪指令 assume 将标号所在的段和一个段寄存器联系起来。否则编译器在编译的时候，无法确定标号的段地址在哪一个寄存器中。与此同时，还需要在实际的代码程序中指定。
+
+offset 操作符：功能为取得某一标号的偏移地址。
+
+seg 操作符：功能为取得某一标号的段地址。
+
+
+
+#### 监测点 16.2
+
+```assembly
+assume cs:code,es:data
+
+data segment
+    a db 1, 2, 3, 4, 5, 6, 7, 8
+    b dw 0
+data ends
+
+code segment
+start:
+    mov ax, data
+    mov es, ax
+    mov si, 0
+    mov cx, 8
+s:
+    mov al, a[si]
+    mov ah, 0
+    add b[0], ax
+    inc si
+    loop s
+
+    mov ax, 4c00h
+    int 21h
+
+
+code ends
+end start
+```
+
+
+
+
+
+### 16.3 直接定址表
 
