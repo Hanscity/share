@@ -1637,6 +1637,8 @@ end begin
 
 正确的程序如下所示，按 F1 键将可以一直改变 DOS 屏幕的颜色
 
+
+
 ```assembly
 assume cs:code
 
@@ -2296,6 +2298,191 @@ sub4s1:
 code ends
 end start
 ```
+
+
+
+
+
+
+
+## 第 17 章 使用 BIOS 进行键盘输入和磁盘读写
+
+
+
+### 17.2 使用 int 16h 中断例程读取键盘缓冲区
+
+编程，接收用户的键盘输入，输入 'r'，将屏幕上的字符设置为红色；输入 'g'，将屏幕上的字符设置为绿色；
+
+输入 'b'，将屏幕上的字符设置为蓝色。
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+
+    mov ah, 0
+    int 16h
+    call delay    ; 需要在这里按下键盘，否则检测不到啊, 事实是 int 16h 没有一直在等待。
+
+    mov ah, 1
+    cmp al, 'r'
+    je red
+    cmp al, 'g'
+    je green
+    cmp al, 'b'
+    je blue
+    jmp short sret
+
+red:
+    shl ah, 1
+green:
+    shl ah, 1
+blue:  
+    mov bx, 0b800h
+    mov es, bx
+    mov bx, 1
+    mov cx, 2000
+s:
+    and byte ptr es:[bx], 11111000b
+    or es:[bx], ah
+    add bx, 2
+    loop s
+
+sret:
+    mov ax, 4c00h
+    int 21h
+
+
+delay:
+    push ax
+    push dx
+
+    mov dx, 10h
+    mov ax, 0
+s1: 
+    sub ax, 1
+    sbb dx, 0
+    cmp ax, 0
+    jne s1
+    cmp dx, 0
+    jne s1
+
+    pop dx
+    pop ax
+    ret
+code ends
+end start
+```
+
+
+
+方法二：
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+    call get_color    ; call 方法，程序会等待输入
+    mov ax, 4c00h
+    int 21h
+
+get_color:
+    mov ah, 0
+    int 16h
+    
+    mov ah, 1
+    cmp al, 'r'
+    je red
+    cmp al, 'g'
+    je green
+    cmp al, 'b'
+    je blue
+    
+red:
+    shl ah, 1
+green:
+    shl ah, 1
+blue:  
+    mov bx, 0b800h
+    mov es, bx
+    mov bx, 1
+    mov cx, 2000
+s:
+    and byte ptr es:[bx], 11111000b
+    or es:[bx], ah
+    add bx, 2
+    loop s
+
+    ret
+
+
+code ends
+end start
+```
+
+
+
+方法二的小优化：
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+    call get_color
+    mov ax, 4c00h
+    int 21h
+
+get_color:
+    mov ah, 0
+    int 16h
+
+    mov ah, 1
+    cmp al, 'r'
+    je red
+    cmp al, 'g'
+    je green
+    cmp al, 'b'
+    je blue
+    ;jmp short get_color    ; 利用无限循环来配合 int 16h 的中断等待
+                            ; 如果不注释此行，程序会一直等待输入
+                            ; 如果注释此行，按 'r g b' 以外的键可以程序返回
+    ret
+
+red:
+    shl ah, 1
+green:
+    shl ah, 1
+blue:  
+    mov bx, 0b800h
+    mov es, bx
+    mov bx, 1
+    mov cx, 2000
+set_color:
+    and byte ptr es:[bx], 11111000b
+    or es:[bx], ah
+    add bx, 2
+    loop set_color
+    jmp short get_color
+
+code ends
+end start
+```
+
+
+
+#### 监测点 17.1
+
+“在 int 16h 中断例程中，一定有设置 IF=1 的指令。” 这种说法对吗？
+
+答案：对。
+
+若 IF 始终为零，即没有设置IF=1的指令，则不会处理int 9 中断，也即缓冲区永远不会有数据放入，就造成了int 16h 的死循环检测。显然不允许这样的事发生，所以一定有设置IF=1的指令。
 
 
 
