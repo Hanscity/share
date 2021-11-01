@@ -2486,3 +2486,143 @@ end start
 
 
 
+
+
+### 17.3 字符串的输入
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+
+    call getstr
+    mov ax, 4c00h
+    int 21h
+
+getstr:
+    push ax
+
+getstrs:
+    mov ah, 0
+    int 16h
+
+    cmp al, 20h    ; ASCII 码小于 20h, 说明不是字符
+    jb nochar
+    mov ah, 0
+    call charstack    ; 字符入栈
+    mov ah, 2
+    call charstack    ; 
+    
+    jmp getstrs
+
+nochar:
+    cmp ah, 0eh    ; 退格键的扫描码
+    je backspace
+    cmp ah, 1ch    ; Enter 键的扫描码
+    je enter
+    jmp getstrs
+
+backspace:
+    mov ah, 1
+    call charstack;
+    mov ah, 2
+    call charstack
+    jmp getstrs
+
+enter:
+    mov al, 0    ; 0 的 ASCII 码为 NULL
+    mov ah, 0
+    call charstack
+    mov ah, 2
+    call charstack
+    jmp getstrs
+
+    pop ax
+    ret
+
+
+;-------------------------------------------
+; charstack --start --字符串的入栈，出栈和显示
+;-------------------------------------------
+
+charstack:
+    jmp short charstart
+    table dw charpush, charpop, charshow
+    top dw 0
+
+charstart:
+    push bx
+    push dx
+    push di
+    push es
+
+    cmp ah, 2
+    ja sret
+    mov bl, ah
+    mov bh, 0
+    add bx, bx
+    jmp word ptr table[bx]
+
+charpush:
+    mov bx, top
+    mov [si][bx], al
+    inc top
+    jmp sret
+
+charpop:
+    cmp top, 0
+    je sret
+    dec top
+    mov bx, top
+    mov al, [si][bx]
+    jmp sret
+
+charshow:
+    mov bx, 0b800h
+    mov es, bx
+    mov al, 160
+    mov ah, 0
+    mul dh
+    mov di, ax
+    add dl, dl
+    mov dh, 0
+    add di, dx
+
+    mov bx, 0
+
+charshows:
+    cmp bx, top
+    jne noempty
+    mov byte ptr es:[di], ' '
+    jmp sret
+
+noempty:
+    mov al, [si][bx]
+    mov es:[di], al
+    mov byte ptr es:[di+1], 11110100B    ; 闪烁白底红字
+    mov byte ptr es:[di+2], ' '
+    inc bx
+    add di, 2
+    jmp charshows
+
+sret:
+    pop es
+    pop di
+    pop dx
+    pop bx
+    ret
+
+;-------------------------------------------
+; charstack --end
+;-------------------------------------------
+
+code ends
+end start
+```
+
+
+
+
+
