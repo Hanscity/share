@@ -2626,3 +2626,221 @@ end start
 
 
 
+### 17.4 应用 int 13h 中断例程对磁盘进行读写
+
+BIOS 提供的访问磁盘的中断例程为 int 13h。读取 0 面 0 道 1 扇区的内容到 0:200 的程序如下所示：
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+
+    mov ax, 0b800h
+    mov es, ax
+    mov bx, 0
+
+    mov al, 1    ; 读取的扇区数
+    mov ch, 0    ; 磁道号
+    mov cl, 17    ; 扇区号
+    mov dl, 0    ; 驱动器号
+    mov dh, 0    ; 磁头号
+    mov ah, 2    ; 功能号
+    int 13h
+    
+    mov ax, 4c00h
+    int 21h
+
+code ends
+end start
+```
+
+返回参数：
+
+操作成功：(ah) = 0, (al) = 读入的扇区数。
+
+操作失败：(ah) = 出错代码。
+
+
+
+编程：将当前屏幕的内容保存在磁盘上。
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+
+    mov ax, 0b800h
+    mov es, ax
+    mov bx, 0
+
+    mov al, 8
+    mov ch, 0
+    mov cl, 1
+    mov dl, 0
+    mov dh, 0
+    mov ah, 3
+    int 13h
+    
+    mov ax, 4c00h
+    int 21h
+
+code ends
+end start
+```
+
+返回参数：
+
+操作成功：(ah) = 0, (al) = 读入的扇区数。
+
+操作失败：(ah) = 出错代码。
+
+
+
+以上两个编程案例，在我的 DOS 中，都返回了操作失败，(ah) = FF
+
+
+
+
+
+### 实验 17 编写包含多个功能子程序的中断程序
+
+安装一个新的 int 7ch 中断例程，实现通过逻辑扇区号对软盘进行读写。
+
+参数说明：
+
+1. 用 ah 寄存器传递功能号：0 表示读，1 表示写；
+2. 用 dx 寄存器传递要读写的扇区的逻辑扇区号；
+3. 用 es:bx 指向存储读出数据或写入数据的内存区。
+
+
+
+```assembly
+assume cs:code
+
+code segment
+    
+start:
+    call set_interrupt
+    call copy_into_interrupt
+
+    mov ah, 0
+    mov al, 8    ; 读取 8 个扇区数
+    mov dx, 17
+    mov bx, 0b800h    ; es:bx 指向存储读出数据或写入数据的内存区
+    mov es, bx
+    mov bx, 0
+
+    int 7ch
+    mov ax, 4c00h
+    int 21h
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码：--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+real_program: 
+    push di
+
+    push ax    ; 保存参数 ah
+    mov ax, dx    ; ax 中保存低位
+    mov dx, 0
+    mov di, 1440
+    div di    ; al 面号
+    push ax    ; 保存结果
+    mov ax, dx
+    mov dl, 18
+    div dl
+    mov ch, al    ; ch 磁道号
+    add ah, 1
+    mov cl, ah    ; cl 扇区号
+    pop ax    ; 取出结果，al 面号
+    mov dl, 0    ; 驱动器号
+    mov dh, al    ; 磁头号(对于软盘即面号，因为一个面用一个磁头来读写)
+    pop ax    ; 取出参数 ah
+    add ah, 2    ; 0 表示读，1 表示写。加上 2 之后，是真实的读写参数传递。
+    int 13h
+
+    pop di
+    iret
+
+real_program_end:
+    nop
+
+    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 真实运行的一段代码：--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+copy_into_interrupt:
+    
+    push ax
+    push ds
+    push es
+    push si
+    push di
+    push cx
+    pushf
+
+    mov ax, cs
+    mov ds, ax
+    mov ax, 0
+    mov es, ax
+
+    mov si, offset real_program
+    mov di, 200h
+    mov cx, offset real_program_end - offset real_program
+    cld
+    rep movsb
+
+    popf
+    pop cx
+    pop di
+    pop si
+    pop es
+    pop ds
+    pop ax
+
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 将中断程序复制到中断向量表指定的位置--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+set_interrupt:
+    push ax
+    push es
+    pushf
+    
+    mov ax, 0
+    mov es, ax
+    mov word ptr es:[7ch*4], 200h
+    mov word ptr es:[7ch*4+2], 0
+
+    popf
+    pop es
+    pop ax
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 设置中断向量表--end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+code ends
+end start
+```
+
